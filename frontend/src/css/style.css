@@ -1,0 +1,9 @@
+/* Category accent borders for ItemCard */
+.border-category-groceries { border-left-color: #22c55e; }
+.border-category-medicines { border-left-color: #3b82f6; }
+.border-category-cosmetics { border-left-color: #ec4899; }
+.border-category-beverages { border-left-color: #f59e0b; }
+.border-category-others { border-left-color: #6b7280; }
+
+/* Hover transitions */
+.hover-transition { transition: all 200ms ease; }

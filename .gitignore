@@ -1,0 +1,62 @@
+# ==============================
+# Global settings
+# ==============================
+
+# Node modules
+node_modules/
+**/node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+
+.env
+.env.*.local
+**/.env
+**/.env.local
+
+# Build outputs
+dist/
+build/
+.cache/
+.next/
+out/
+.temp/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+.ntvs
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Dependency locks (optional if you use only one manager)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# ==============================
+# Backend specific
+# ==============================
+backend/uploads/
+backend/logs/
+backend/.env
+
+# ==============================
+# Frontend specific
+# ==============================
+frontend/node_modules/
+frontend/dist/
+frontend/.env
