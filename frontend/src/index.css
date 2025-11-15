@@ -1,15 +1,83 @@
+/* @tailwind base;
+@tailwind components;
+@tailwind utilities; */
+
+/* Global styles */
+/* html, body, #root {
+  height: 100%;
+} */
+
+/* Define custom layer for the card */
+/* @layer components {
+  .card {
+    @apply bg-white shadow-soft rounded-xl border border-gray-100;
+  }
+} */
+/* optional extra */
+/* :root {
+  --accent-500: #3b82f6; /* tweak as needed */
+/* } */ 
+
+/* subtle card shadow if needed */
+/* .shadow-soft { box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06); } */
+
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Global styles */
-html, body, #root {
-  height: 100%;
+/* Global sizing */
+html, body, #root { height: 100%; }
+
+/* Design tokens */
+:root {
+  --accent-500: #6366f1; /* indigo-500 tuned */
 }
 
-/* Define custom layer for the card */
+/* Card component */
 @layer components {
   .card {
-    @apply bg-white shadow-soft rounded-xl border border-gray-100;
+    @apply bg-white rounded-2xl border border-gray-100 shadow-soft;
   }
+}
+
+/* Soft shadow utility */
+.shadow-soft { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06); }
+
+/* Nice focus */
+:focus { outline: none; box-shadow: 0 0 0 4px rgba(99,102,241,0.12); }
+
+/* src/index.css  — append these rules near your other tailwind/custom rules */
+
+/* Activity card tweaks */
+.activity-list-item pre {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #374151; /* gray-700 */
+  background: rgba(243,244,246,0.9); /* gray-50 */
+  border-radius: 8px;
+  padding: 10px;
+  overflow: auto;
+}
+
+/* improve pre line wrapping on small screens */
+.activity-list-item pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Slightly larger emoji container on small screens */
+@media (min-width: 640px) {
+  .activity-list-item .emoji {
+    font-size: 20px;
+  }
+}
+
+/* Soft special shadow for each item */
+.activity-card-shadow {
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+}
+.card {
+  @apply bg-white rounded-xl shadow-md border border-gray-100;
 }

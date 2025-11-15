@@ -98,6 +98,20 @@
 
 // frontend/src/pages/Dashboard.jsx
 // frontend/src/pages/Dashboard.jsx
+// frontend/src/pages/Dashboard.jsx
+// src/pages/Dashboard.jsx
+// Full updated dashboard with activity logging (delete + update) and clean UI.
+//
+// Important: This file expects:
+// - api.js to be available at ../utils/api.js
+// - logActivity helper at ../utils/logActivity.js
+// - useAuth from ../context/AuthContext.jsx
+// - ItemCard, ReminderCard, EditItemModal, ItemDetailsModal, SwipeableRow components exist
+// - EditItemModal should call onSaved(updatedItem) when an item is successfully saved.
+
+// frontend/src/pages/Dashboard.jsx
+// (This is a minimal diff from what you already had — kept structure but ensured activity logging calls and EditItemModal hooks)
+// src/pages/Dashboard.jsx
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import api from '../utils/api.js'
@@ -105,17 +119,17 @@ import ItemCard from '../components/ItemCard.jsx'
 import ReminderCard from '../components/ReminderCard.jsx'
 import NotificationBell from '../components/NotificationBell.jsx'
 import { evaluateBadges, moneySaved } from '../utils/helpers.js'
+import logActivity from '../utils/logActivity.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
-// new components
+// new components (kept as-is)
 import ItemFilters from '../components/ItemFilters.jsx'
 import ItemDetailsModal from '../components/ItemDetailsModal.jsx'
 import EditItemModal from '../components/EditItemModal.jsx'
 import SwipeableRow from '../components/SwipeableRow.jsx'
 
-// web-push helper (named export)
-import { ensureSubscribed } from '../utils/pushClient.js'
-
 export default function Dashboard() {
+  const { user } = useAuth()
   const [items, setItems] = useState([])
   const [reminders, setReminders] = useState([])
   const [loadingItems, setLoadingItems] = useState(true)
@@ -124,18 +138,27 @@ export default function Dashboard() {
   const [selectedItem, setSelectedItem] = useState(null)
   const [editItem, setEditItem] = useState(null)
 
-  // ensure browser push subscription for logged-in user
   useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (token) ensureSubscribed().catch(() => {})
+    const load = async () => {
+      try {
+        const { data } = await api.get('/items')
+        setItems(data.items || data || [])
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoadingItems(false)
+      }
+    }
+    load()
   }, [])
 
-  // load reminders once
   useEffect(() => {
     const load = async () => {
       try {
         const { data } = await api.get('/reminders')
         setReminders(data || [])
+      } catch (err) {
+        console.error(err)
       } finally {
         setLoadingReminders(false)
       }
@@ -143,30 +166,60 @@ export default function Dashboard() {
     load()
   }, [])
 
+  const refreshItems = async () => {
+    try {
+      const { data } = await api.get('/items')
+      setItems(data.items || data || [])
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleDelete = async (id, itemName) => {
+    if (!confirm('Delete this item?')) return
+    try {
+      await api.delete(`/items/${id}`)
+      setItems((old) => old.filter((x) => x._id !== id))
+      // log activity
+      await logActivity({
+        userId: user?.id,
+        userName: user?.name || user?.email,
+        type: 'item:delete',
+        message: `${user?.name || user?.email} deleted item "${itemName}"`,
+        meta: { itemId: id, itemName }
+      })
+    } catch (err) {
+      console.error(err)
+      alert('Failed to delete item')
+    }
+  }
+
+  const handleUpdated = async (updated) => {
+    setItems((old) => old.map(it => (it._id === updated._id ? updated : it)))
+    try {
+      await logActivity({
+        userId: user?.id,
+        userName: user?.name || user?.email,
+        type: 'item:update',
+        message: `${user?.name || user?.email} updated "${updated.name}"`,
+        meta: { itemId: updated._id, item: updated }
+      })
+    } catch (e) { console.warn(e) }
+  }
+
   const badges = evaluateBadges(items)
   const savings = moneySaved(items)
-
-  const refreshAfterEdit = async () => {
-    const { data } = await api.get('/items')
-    setItems(data.items || data || [])
-  }
-
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this item?')) return
-    await api.delete(`/items/${id}`)
-    setItems((old) => old.filter((x) => x._id !== id))
-  }
-
-  const isLoading = loadingItems || loadingReminders
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+          <p className="text-sm text-gray-600">Welcome back{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋</p>
+        </div>
         <NotificationBell />
       </div>
 
-      {/* Filters + server-side list loader */}
       <div className="card p-4 mb-4">
         <ItemFilters
           onData={(data) => {
@@ -203,21 +256,21 @@ export default function Dashboard() {
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="card p-4 md:col-span-2">
           <h2 className="font-medium mb-3">Items</h2>
 
-          {isLoading ? (
+          {loadingItems ? (
             <p>Loading...</p>
           ) : items.length ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {items.map((item) => (
                 <SwipeableRow
                   key={item._id || item.id}
-                  onDelete={() => handleDelete(item._id)}
+                  onDelete={() => handleDelete(item._id, item.name)}
                   onEdit={() => setEditItem(item)}
                 >
                   <ItemCard
                     item={item}
                     onClick={() => setSelectedItem(item)}
                     onEdit={() => setEditItem(item)}
-                    onDelete={() => handleDelete(item._id)}
+                    onDelete={() => handleDelete(item._id, item.name)}
                   />
                 </SwipeableRow>
               ))}
@@ -239,19 +292,20 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* Details modal */}
       {selectedItem && (
         <ItemDetailsModal item={selectedItem} onClose={() => setSelectedItem(null)} />
       )}
 
-      {/* Edit modal */}
       {editItem && (
         <EditItemModal
           item={editItem}
-          onSaved={refreshAfterEdit}
+          onSaved={() => { refreshItems(); setEditItem(null); }}
           onClose={() => setEditItem(null)}
+          onUpdated={handleUpdated}
         />
       )}
     </div>
   )
 }
+
+

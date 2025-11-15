@@ -3,12 +3,16 @@ import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import api from '../utils/api.js'
+import ForgotPasswordModal from './ForgotPasswordModal.jsx'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
+
   const navigate = useNavigate()
   const { login } = useAuth()
 
@@ -17,8 +21,14 @@ export default function Login() {
     setLoading(true)
     setError('')
     try {
-      // ✅ Corrected endpoint (no extra /api)
       const { data } = await api.post('/auth/login', { email, password })
+
+      // **Ensure token is saved immediately (avoid race)**
+      if (data?.token) {
+        localStorage.setItem('token', data.token)
+      }
+
+      // notify AuthContext
       login(data.token)
       navigate('/dashboard')
     } catch (err) {
@@ -30,48 +40,105 @@ export default function Login() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-[70vh]">
+    <div className="min-h-[82vh] flex items-center justify-center bg-gradient-to-b from-slate-50 to-white p-6">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        className="card p-6 w-full max-w-sm"
+        transition={{ duration: 0.32 }}
+        className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center"
       >
-        <h1 className="text-2xl font-semibold mb-4">Welcome back</h1>
-        {error && <p className="text-red-600 mb-3">{error}</p>}
-        <form onSubmit={onSubmit} className="space-y-3">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Email</label>
-            <input
-              className="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="you@example.com"
-            />
+        {/* Illustration / branding */}
+        <div className="hidden md:flex flex-col items-center justify-center p-8 rounded-xl bg-gradient-to-br from-indigo-50 to-sky-50">
+          <div className="mb-4">
+            <img src="/assets/illustrations/login-ill.svg" alt="Smart Shelf" className="w-56 h-auto" />
           </div>
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">Password</label>
-            <input
-              className="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-            />
+          <h2 className="text-3xl font-bold text-slate-800">Smart Shelf</h2>
+          <p className="mt-3 text-sm text-slate-600 text-center px-8">
+            Track expiry dates — get reminders, reduce food waste and save money. Fast, private, and simple.
+          </p>
+        </div>
+
+        {/* Form card */}
+        <div className="card p-7">
+          <h1 className="text-2xl font-semibold mb-1">Welcome back</h1>
+          <p className="text-sm text-gray-500 mb-4">Sign in to your account</p>
+
+          {error && (
+            <div className="mb-3 rounded-md bg-red-50 border border-red-100 p-2 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Password</label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label="Toggle password visibility"
+                  className="absolute right-3 top-2 text-sm text-gray-600 hover:text-indigo-600"
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <button
+                type="button"
+                onClick={() => setForgotOpen(true)}
+                className="text-indigo-600 hover:underline"
+              >
+                Forgot password?
+              </button>
+              <div className="text-gray-500">
+                Need an account?{' '}
+                <a className="text-indigo-600 underline" href="/register">
+                  Create
+                </a>
+              </div>
+            </div>
+
+            <div>
+              <button
+                disabled={loading}
+                className="w-full rounded-lg bg-indigo-600 text-white py-2 shadow hover:bg-indigo-700 transition"
+              >
+                {loading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-4 text-center text-xs text-gray-400">
+            By signing in you agree to our <a className="underline">Terms</a> & <a className="underline">Privacy</a>.
           </div>
-          <button
-            disabled={loading}
-            className="w-full rounded-lg bg-blue-600 text-white py-2 hover:bg-blue-700 transition"
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </form>
-        <p className="text-sm text-gray-500 mt-3">
-          No account? <a href="/register" className="text-blue-600 underline">Register</a>
-        </p>
+        </div>
       </motion.div>
+
+      {/* Forgot password modal */}
+      {forgotOpen && <ForgotPasswordModal onClose={() => setForgotOpen(false)} />}
     </div>
   )
 }
+
