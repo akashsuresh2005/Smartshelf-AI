@@ -1,7 +1,8 @@
+// src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../utils/api.js';
 import logActivity from '../utils/logActivity.js';
-import { ensureSubscribed } from '../utils/pushClient.js'; // <- added
+import { ensureSubscribed } from '../utils/pushClient.js';
 
 const AuthContext = createContext(null);
 
@@ -48,10 +49,9 @@ export function AuthProvider({ children }) {
     check().finally(() => setLoading(false));
   }, [token]);
 
-  // refreshUser: re-fetch server-side user doc and update context (use after profile/settings change)
   const refreshUser = async () => {
     try {
-      const { data } = await api.get('/users/me'); // /api/users/me
+      const { data } = await api.get('/users/me');
       if (data) {
         setUser(data);
         return data;
@@ -67,7 +67,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // login: store token, set user, and log activity
   const login = async (newToken) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
@@ -83,8 +82,6 @@ export function AuthProvider({ children }) {
       });
     } catch {}
 
-    // ensure subscription is created and POSTed while user is authenticated
-    // non-blocking: if it fails we log and continue (won't break login)
     try {
       await ensureSubscribed();
       console.log('[Auth] ensureSubscribed succeeded');
@@ -93,7 +90,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // logout: clear token, log activity and redirect
   const logout = async () => {
     const payload = user || decodeJwtPayload(localStorage.getItem('token') || '');
     try {

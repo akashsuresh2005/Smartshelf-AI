@@ -24,12 +24,10 @@ export default function Login() {
     try {
       const { data } = await api.post('/auth/login', { email, password })
 
-      // Ensure token is saved immediately (avoid race)
       if (data?.token) {
         localStorage.setItem('token', data.token)
       }
 
-      // notify AuthContext
       login(data.token)
       navigate('/dashboard')
     } catch (err) {
@@ -41,34 +39,34 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-[82vh] flex items-center justify-center bg-gradient-to-b from-slate-50 to-white p-6">
+    <div className="bg-slate-950 min-h-screen flex items-center justify-center p-6">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.32 }}
-        className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center"
+        className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center"
       >
         {/* Illustration / branding */}
-        <div className="hidden md:flex flex-col items-center justify-center p-8 rounded-xl bg-gradient-to-br from-indigo-50 to-sky-50">
+        <div className="hidden md:flex flex-col items-center justify-center p-8 rounded-xl bg-slate-900/60 border border-slate-800/50">
           <div className="mb-4">
             <img src="/assets/illustrations/login-ill.svg" alt="Smart Shelf" className="w-56 h-auto" />
           </div>
-          <h2 className="text-3xl font-bold text-slate-800">Smart Shelf</h2>
-          <p className="mt-3 text-sm text-slate-600 text-center px-8">
+          <h2 className="text-3xl font-bold text-cyan-400">Smart Shelf</h2>
+          <p className="mt-3 text-base text-slate-400 text-center px-8">
             Track expiry dates — get reminders, reduce food waste and save money. Fast, private, and simple.
           </p>
         </div>
 
         {/* Form card */}
-        <div className="card p-7">
-          <h1 className="text-2xl font-semibold mb-1">Welcome back</h1>
-          <p className="text-sm text-gray-500 mb-4">Sign in to your account</p>
+        <div className="bg-slate-900/60 rounded-lg p-7 border border-slate-800/50">
+          <h1 className="text-3xl font-semibold text-cyan-400 mb-2">Welcome back</h1>
+          <p className="text-base text-slate-500 mb-4">Sign in to your account</p>
 
           {error && (
             <div
               role="alert"
               aria-live="polite"
-              className="mb-3 rounded-md bg-red-50 border border-red-100 p-2 text-sm text-red-700"
+              className="mb-3 rounded-md bg-red-950/50 border border-red-800/50 p-3 text-sm text-red-300"
             >
               {error}
             </div>
@@ -76,7 +74,7 @@ export default function Login() {
 
           <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <div>
-              <label htmlFor="email" className="block text-sm text-gray-600 mb-1">Email</label>
+              <label htmlFor="email" className="block text-sm text-slate-400 mb-1">Email</label>
               <input
                 id="email"
                 name="email"
@@ -84,7 +82,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-300 px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
                 placeholder="you@example.com"
                 autoComplete="username"
                 inputMode="email"
@@ -92,7 +90,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm text-gray-600 mb-1">Password</label>
+              <label htmlFor="password" className="block text-sm text-slate-400 mb-1">Password</label>
               <div className="relative">
                 <input
                   id="password"
@@ -101,7 +99,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-16 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="w-full rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-300 px-4 py-2.5 pr-16 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
                   placeholder="••••••••"
                   autoComplete="current-password"
                 />
@@ -109,7 +107,7 @@ export default function Login() {
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-2 text-sm text-gray-600 hover:text-indigo-600"
+                  className="absolute right-3 top-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors"
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
@@ -120,13 +118,13 @@ export default function Login() {
               <button
                 type="button"
                 onClick={() => setForgotOpen(true)}
-                className="text-indigo-600 hover:underline"
+                className="text-cyan-400 hover:underline"
               >
                 Forgot password?
               </button>
-              <div className="text-gray-500">
+              <div className="text-slate-400">
                 Need an account?{' '}
-                <a className="text-indigo-600 underline" href="/register" rel="noopener noreferrer">
+                <a className="text-cyan-400 underline" href="/register" rel="noopener noreferrer">
                   Create
                 </a>
               </div>
@@ -136,8 +134,8 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`w-full rounded-lg bg-indigo-600 text-white py-2 shadow transition disabled:opacity-60 ${
-                  loading ? 'cursor-wait' : 'hover:bg-indigo-700'
+                className={`w-full rounded-lg bg-indigo-600 text-white py-2.5 text-sm font-medium shadow transition disabled:opacity-60 ${
+                  loading ? 'cursor-wait' : 'hover:bg-indigo-500'
                 }`}
               >
                 {loading ? 'Signing in...' : 'Sign in'}
@@ -145,7 +143,7 @@ export default function Login() {
             </div>
           </form>
 
-          <div className="mt-4 text-center text-xs text-gray-400">
+          <div className="mt-4 text-center text-xs text-slate-500">
             By signing in you agree to our <a className="underline">Terms</a> & <a className="underline">Privacy</a>.
           </div>
         </div>

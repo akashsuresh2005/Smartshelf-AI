@@ -8,37 +8,32 @@ import './css/style.css'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
 
-/* Register service worker for PWA and handle notification permission safely */
+/* Register service worker for PWA */
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/service-worker.js');
-      // expose for debugging / later use (optional)
-      window.swRegistration = registration;
+      const registration = await navigator.serviceWorker.register('/service-worker.js')
+      window.swRegistration = registration
     } catch (err) {
-      // ignore registration failure (dev) but log optionally
-      // console.warn('SW registration failed', err);
-    }
-
-    // Request notification permission from the user only if needed
-    if ('Notification' in window) {
-      try {
-        if (Notification.permission === 'default') {
-          // You can remove this automatic request and instead call Notification.requestPermission()
-          // from a user gesture (recommended). We request here to avoid the "showNotification permission" error.
-          Notification.requestPermission().then((perm) => {
-            if (perm !== 'granted') {
-              // not granted — future push attempts will be ignored by SW (no uncaught errors)
-              // console.log('Notifications permission:', perm)
-            }
-          }).catch(() => {});
-        }
-      } catch (e) {
-        // ignore
-      }
+      // Optional: console.warn('SW registration failed', err)
     }
   })
 }
+
+/* Safer notification permission handling (request on user gesture) */
+(function setupNotificationPermission() {
+  if (!('Notification' in window)) return
+  // Expose a function to request permission from a user gesture (e.g., button click)
+  window.requestNotificationsPermission = async () => {
+    try {
+      const perm = await Notification.requestPermission()
+      // Optional: handle 'granted'/'denied' states here
+      return perm
+    } catch {
+      return 'denied'
+    }
+  }
+})()
 
 /* Install prompt capture */
 let deferredPrompt

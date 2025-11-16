@@ -1,10 +1,10 @@
-// src/pages/ActivityLog.jsx
+// src/pages/ActivityLog.jsx - Dark Theme with Larger Fonts
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import api from '../utils/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import ActivityItem from '../components/ActivityItem.jsx' // new component we add
-import ReportModal from '../components/ReportModal.jsx'   // <-- added
+import ActivityItem from '../components/ActivityItem.jsx'
+import ReportModal from '../components/ReportModal.jsx'
 
 const TYPE_MAP = {
   'item:add': { label: 'Item added', emoji: '➕', color: 'bg-green-50 text-green-700' },
@@ -32,8 +32,6 @@ export default function ActivityLog() {
   const [loading, setLoading] = useState(true)
   const [filterType, setFilterType] = useState('all')
   const [perPage, setPerPage] = useState(20)
-
-  // NEW: report modal open state (non-invasive)
   const [reportOpen, setReportOpen] = useState(false)
 
   useEffect(() => {
@@ -43,7 +41,6 @@ export default function ActivityLog() {
         setLoading(true)
         const { data } = await api.get('/activity?limit=200')
         if (!mounted) return
-        // server returns array of activities (listActivities returns items array)
         setActivities(Array.isArray(data) ? data : (data.activities || []))
       } catch (err) {
         console.error('Failed to load activity', err)
@@ -65,39 +62,49 @@ export default function ActivityLog() {
   }, [activities, filterType, perPage])
 
   return (
-    <div>
+    <div className="bg-slate-950 min-h-screen">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Activity log</h1>
-          <p className="text-sm text-gray-500">Recent actions & system events</p>
+          <h1 className="text-3xl font-semibold text-cyan-400">Activity log</h1>
+          <p className="text-base text-slate-500 mt-1">Recent actions & system events</p>
         </div>
-        <div className="text-sm text-gray-600 hidden sm:block">Signed in as <span className="font-medium">{user?.name || user?.email}</span></div>
+        <div className="text-base text-slate-400 hidden sm:block">
+          Signed in as <span className="font-medium text-slate-300">{user?.name || user?.email}</span>
+        </div>
       </div>
 
-      <div className="card p-4 mb-4">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="bg-slate-900/60 rounded-lg p-5 mb-4 border border-slate-800/50">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-xs text-gray-500">Activity type</label>
-            <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="w-full rounded-lg border-gray-200 px-3 py-2">
+            <label className="text-sm font-medium text-slate-500 mb-2 block">Activity type</label>
+            <select 
+              value={filterType} 
+              onChange={(e) => setFilterType(e.target.value)} 
+              className="w-full bg-slate-800/60 border border-slate-700/50 text-slate-300 rounded-lg px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
+            >
               {types.map(t => (
-                <option key={t} value={t}>{t === 'all' ? 'All Activities' : t}</option>
+                <option key={t} value={t} className="bg-slate-800">{t === 'all' ? 'All Activities' : t}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="text-xs text-gray-500">Items per page</label>
-            <select value={perPage} onChange={(e) => setPerPage(Number(e.target.value))} className="w-full rounded-lg border-gray-200 px-3 py-2">
-              {[10,20,50,100].map(n => <option key={n} value={n}>{n}</option>)}
+            <label className="text-sm font-medium text-slate-500 mb-2 block">Items per page</label>
+            <select 
+              value={perPage} 
+              onChange={(e) => setPerPage(Number(e.target.value))} 
+              className="w-full bg-slate-800/60 border border-slate-700/50 text-slate-300 rounded-lg px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
+            >
+              {[10,20,50,100].map(n => <option key={n} value={n} className="bg-slate-800">{n}</option>)}
             </select>
           </div>
 
-          <div className="hidden md:flex items-end justify-end text-sm text-gray-500 gap-3">
-            <span>{activities.length} total</span>
+          <div className="hidden md:flex items-end justify-end text-base text-slate-400 gap-3">
+            <span className="text-cyan-400 font-semibold text-lg">{activities.length}</span>
+            <span>total</span>
 
-            {/* NEW: Generate report button (non-invasive) */}
             <button
-              className="text-xs px-2 py-1 rounded border bg-white hover:bg-gray-50"
+              className="text-sm font-medium px-4 py-2.5 rounded-lg border border-slate-700/50 bg-slate-800/60 hover:bg-slate-700/60 text-slate-300 transition-colors"
               onClick={() => setReportOpen(true)}
             >
               Generate report
@@ -106,11 +113,15 @@ export default function ActivityLog() {
         </div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card p-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 8 }} 
+        animate={{ opacity: 1, y: 0 }} 
+        className="bg-slate-900/60 rounded-lg p-5 border border-slate-800/50"
+      >
         {loading ? (
-          <div className="text-gray-500">Loading…</div>
+          <div className="text-slate-500 text-base py-8">Loading…</div>
         ) : filtered.length === 0 ? (
-          <div className="text-gray-500">No activities yet.</div>
+          <div className="text-slate-500 text-base py-8">No activities yet.</div>
         ) : (
           <ul className="space-y-3">
             {filtered.map((a) => (
@@ -127,12 +138,11 @@ export default function ActivityLog() {
         )}
       </motion.div>
 
-      {/* NEW: Report modal — exports the currently visible (filtered) activities */}
       {reportOpen && (
         <ReportModal
           open={reportOpen}
           onClose={() => setReportOpen(false)}
-          activities={filtered} // pass filtered so export matches current view
+          activities={filtered}
         />
       )}
     </div>

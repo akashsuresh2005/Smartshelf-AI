@@ -1,78 +1,6 @@
-// import { useEffect, useState } from 'react';
-// import api from '../utils/api.js';
-
-// export default function NotificationPrefs() {
-//   const [prefs, setPrefs] = useState({
-//     emailEnabled: true,
-//     expiringSoon: true,
-//     expired: true,
-//     digestDaily: false,
-//     digestWeekly: true
-//   });
-//   const [saving, setSaving] = useState(false);
-//   const [saved, setSaved] = useState(false);
-
-//   useEffect(() => {
-//     (async () => {
-//       try {
-//         const { data } = await api.get('/notifications/prefs');
-//         setPrefs({ ...prefs, ...data });
-//       } catch {}
-//     })();
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, []);
-
-//   const onToggle = (key) => setPrefs((p) => ({ ...p, [key]: !p[key] }));
-
-//   const onSave = async () => {
-//     try {
-//       setSaving(true);
-//       await api.put('/notifications/prefs', prefs);
-//       setSaved(true);
-//       setTimeout(() => setSaved(false), 1500);
-//     } finally {
-//       setSaving(false);
-//     }
-//   };
-
-//   return (
-//     <div className="card p-4 space-y-3">
-//       <h3 className="font-medium">Manage your email notifications & preferences</h3>
-
-//       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-//         <label className="flex items-center gap-2">
-//           <input type="checkbox" checked={prefs.emailEnabled} onChange={() => onToggle('emailEnabled')} />
-//           <span>Email notifications enabled</span>
-//         </label>
-//         <label className="flex items-center gap-2">
-//           <input type="checkbox" checked={prefs.expiringSoon} onChange={() => onToggle('expiringSoon')} />
-//           <span>Notify on expiring soon</span>
-//         </label>
-//         <label className="flex items-center gap-2">
-//           <input type="checkbox" checked={prefs.expired} onChange={() => onToggle('expired')} />
-//           <span>Notify on expired items</span>
-//         </label>
-//         <label className="flex items-center gap-2">
-//           <input type="checkbox" checked={prefs.digestDaily} onChange={() => onToggle('digestDaily')} />
-//           <span>Daily digest email</span>
-//         </label>
-//         <label className="flex items-center gap-2">
-//           <input type="checkbox" checked={prefs.digestWeekly} onChange={() => onToggle('digestWeekly')} />
-//           <span>Weekly digest email</span>
-//         </label>
-//       </div>
-
-//       <div className="flex items-center gap-2">
-//         <button className="rounded bg-blue-600 text-white px-3 py-1" onClick={onSave} disabled={saving}>
-//           {saving ? 'Saving…' : 'Save preferences'}
-//         </button>
-//         {saved && <span className="text-sm text-green-600">Saved!</span>}
-//       </div>
-//     </div>
-//   );
-// }
-import { useEffect, useState } from 'react';
-import api from '../utils/api.js';
+// src/components/NotificationPrefs.jsx
+import { useEffect, useState } from 'react'
+import api from '../utils/api.js'
 
 export default function NotificationPrefs() {
   const [prefs, setPrefs] = useState({
@@ -80,65 +8,139 @@ export default function NotificationPrefs() {
     expiringSoon: true,
     expired: true,
     digestDaily: false,
-    digestWeekly: false
-  });
-  const [saving, setSaving] = useState(false);
+    digestWeekly: false,
+  })
+  const [initial, setInitial] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
   const load = async () => {
-    const { data } = await api.get('/notifications/prefs');
-    setPrefs({
-      emailEnabled: !!data.emailEnabled,
-      expiringSoon: !!data.expiringSoon,
-      expired: !!data.expired,
-      digestDaily: !!data.digestDaily,
-      digestWeekly: !!data.digestWeekly
-    });
-  };
+    setLoading(true)
+    setError('')
+    try {
+      const { data } = await api.get('/notifications/prefs')
+      const next = {
+        emailEnabled: !!data.emailEnabled,
+        expiringSoon: !!data.expiringSoon,
+        expired: !!data.expired,
+        digestDaily: !!data.digestDaily,
+        digestWeekly: !!data.digestWeekly,
+      }
+      setPrefs(next)
+      setInitial(next)
+    } catch (e) {
+      setError('Failed to load preferences')
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load() }, [])
 
-  const toggle = (k) => setPrefs((p) => ({ ...p, [k]: !p[k] }));
+  const toggle = (k) => {
+    setInfo('')
+    setPrefs((p) => ({ ...p, [k]: !p[k] }))
+  }
+
+  const changed =
+    initial &&
+    ['emailEnabled', 'expiringSoon', 'expired', 'digestDaily', 'digestWeekly'].some(
+      (k) => initial[k] !== prefs[k]
+    )
 
   const save = async () => {
-    setSaving(true);
+    setSaving(true)
+    setError('')
+    setInfo('')
     try {
-      await api.put('/notifications/prefs', prefs);
+      await api.put('/notifications/prefs', prefs)
+      setInitial(prefs)
+      setInfo('Preferences saved')
+    } catch {
+      setError('Failed to save preferences')
     } finally {
-      setSaving(false);
+      setSaving(false)
     }
-  };
+  }
 
   return (
-    <div className="card p-4 space-y-3">
-      <h3 className="font-medium">Manage your email notifications & preferences</h3>
+    <div className="bg-slate-900/60 rounded-lg p-5 border border-slate-800/50 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-cyan-400">
+          Manage your email notifications & preferences
+        </h3>
+        {loading && <span className="text-xs text-slate-500">Loading…</span>}
+      </div>
+
+      {error && (
+        <div className="rounded-lg p-3 text-sm bg-red-950/50 text-red-300 border border-red-800/50">
+          {error}
+        </div>
+      )}
+      {info && (
+        <div className="rounded-lg p-3 text-sm bg-green-950/50 text-green-300 border border-green-800/50">
+          {info}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={prefs.emailEnabled} onChange={() => toggle('emailEnabled')} />
-          <span>Email notifications enabled</span>
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+          <input
+            type="checkbox"
+            checked={prefs.emailEnabled}
+            onChange={() => toggle('emailEnabled')}
+          />
+          <span className="text-slate-200">Email notifications enabled</span>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={prefs.expiringSoon} onChange={() => toggle('expiringSoon')} />
-          <span>Notify when items are expiring soon</span>
+
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+          <input
+            type="checkbox"
+            checked={prefs.expiringSoon}
+            onChange={() => toggle('expiringSoon')}
+          />
+          <span className="text-slate-200">Notify when items are expiring soon</span>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={prefs.expired} onChange={() => toggle('expired')} />
-          <span>Notify when items are expired</span>
+
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+          <input
+            type="checkbox"
+            checked={prefs.expired}
+            onChange={() => toggle('expired')}
+          />
+          <span className="text-slate-200">Notify when items are expired</span>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={prefs.digestDaily} onChange={() => toggle('digestDaily')} />
-          <span>Daily email digest</span>
+
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+          <input
+            type="checkbox"
+            checked={prefs.digestDaily}
+            onChange={() => toggle('digestDaily')}
+          />
+          <span className="text-slate-200">Daily email digest</span>
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={prefs.digestWeekly} onChange={() => toggle('digestWeekly')} />
-          <span>Weekly email digest</span>
+
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+          <input
+            type="checkbox"
+            checked={prefs.digestWeekly}
+            onChange={() => toggle('digestWeekly')}
+          />
+          <span className="text-slate-200">Weekly email digest</span>
         </label>
       </div>
 
-      <div>
-        <button className="rounded bg-blue-600 text-white px-4 py-2" onClick={save} disabled={saving}>
-          {saving ? 'Saving…' : 'Save preferences'}
+      <div className="flex items-center justify-end">
+        <button
+          className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors disabled:opacity-60"
+          onClick={save}
+          disabled={saving || !changed}
+        >
+          {saving ? 'Saving…' : changed ? 'Save preferences' : 'Saved'}
         </button>
       </div>
     </div>
-  );
+  )
 }

@@ -24,27 +24,37 @@ export default function ForgotPasswordModal({ onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-lg">
-        <h2 className="text-lg font-semibold mb-1">Reset password</h2>
-        <p className="text-sm text-gray-500 mb-4">Enter your email and we’ll send a reset link.</p>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 px-4">
+      <div className="bg-slate-900/80 rounded-2xl p-6 w-full max-w-sm border border-slate-800/50 shadow-lg">
+        <h2 className="text-2xl font-semibold text-cyan-400 mb-2">Reset password</h2>
+        <p className="text-base text-slate-400 mb-4">
+          Enter your email and we’ll send a reset link.
+        </p>
 
-        {message && <p className="mb-3 text-sm text-green-700 bg-green-50 p-2 rounded">{message}</p>}
-        {error && <p className="mb-3 text-sm text-red-700 bg-red-50 p-2 rounded">{error}</p>}
+        {message && (
+          <p className="mb-3 text-sm text-green-300 bg-green-950/50 p-3 rounded-lg">
+            {message}
+          </p>
+        )}
+        {error && (
+          <p className="mb-3 text-sm text-red-300 bg-red-950/50 p-3 rounded-lg">
+            {error}
+          </p>
+        )}
 
-        <form onSubmit={sendReset} className="space-y-3">
+        <form onSubmit={sendReset} className="space-y-4">
           <input
             type="email"
             required
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-300 px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
           />
 
           <button
             disabled={loading}
-            className="w-full bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 transition"
+            className="w-full rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 text-sm font-medium transition-colors"
           >
             {loading ? 'Sending…' : 'Send reset link'}
           </button>
@@ -52,7 +62,7 @@ export default function ForgotPasswordModal({ onClose }) {
 
         <button
           onClick={onClose}
-          className="mt-4 w-full text-sm text-gray-600 hover:underline"
+          className="mt-4 w-full text-sm text-slate-400 hover:text-slate-200 hover:underline transition-colors"
         >
           Close
         </button>

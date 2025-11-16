@@ -1,6 +1,7 @@
+// src/components/Settings.jsx
 import { useEffect, useState, useRef } from 'react'
 import { useAuth } from '../context/AuthContext.jsx'
-import api from '../utils/api.js' // low-level axios instance (used for password/avatar)
+import api from '../utils/api.js'
 import settingsApi from '../utils/settingsApi.js'
 
 export default function Settings() {
@@ -14,8 +15,8 @@ export default function Settings() {
     pushEnabled: true,
     reminderDays: 3,
     digest: 'weekly',
-    theme: 'light',
-    accent: '#0b5fff',
+    theme: 'dark',
+    accent: '#06b6d4',
     compact: false
   })
   const [saving, setSaving] = useState(false)
@@ -35,7 +36,6 @@ export default function Settings() {
         if (!mounted) return
 
         if (data) {
-          // map server response to local form fields safely
           setForm(prev => ({
             ...prev,
             username: data.name ?? prev.username,
@@ -44,14 +44,12 @@ export default function Settings() {
             theme: data.theme ?? prev.theme,
             accent: data.accent ?? prev.accent,
             compact: data.layoutDensity === 'compact' ? true : prev.compact,
-            // notificationPrefs if present
             emailEnabled: data.notificationPrefs?.emailEnabled ?? prev.emailEnabled,
             pushEnabled: data.notificationPrefs?.pushEnabled ?? prev.pushEnabled,
             reminderDays: data.notificationPrefs?.reminderDays ?? prev.reminderDays,
             digest: data.notificationPrefs?.digest ?? prev.digest
           }))
         } else {
-          // no backend data — use Auth fallback
           setForm(prev => ({
             ...prev,
             username: user?.name || '',
@@ -59,7 +57,6 @@ export default function Settings() {
           }))
         }
       } catch (e) {
-        // fallback to auth info
         setForm(prev => ({
           ...prev,
           username: user?.name || '',
@@ -78,7 +75,7 @@ export default function Settings() {
 
   async function onSave(e) {
     e?.preventDefault()
-    if (saving) return // prevent double submissions
+    if (saving) return
     setSaving(true); setMsg('')
     try {
       const payload = {
@@ -94,23 +91,12 @@ export default function Settings() {
         }
       }
 
-      console.log('[Settings] sending payload:', payload) // DEBUG
-
-      // PUT /api/users/me => returns updated user document (server must return the user)
       const updated = await settingsApi.update(payload)
 
-      console.log('[Settings] server response:', updated) // DEBUG
-
-      // refresh AuthContext user so global UI reflects changes immediately
       if (typeof refreshUser === 'function') {
-        try {
-          await refreshUser()
-        } catch (e) {
-          console.warn('[Settings] refreshUser failed', e)
-        }
+        try { await refreshUser() } catch (e) { /* ignore */ }
       }
 
-      // apply server-returned values into local form so UI reflects saved state
       if (updated) {
         setForm(prev => ({
           ...prev,
@@ -137,7 +123,6 @@ export default function Settings() {
     }
   }
 
-  // Change password
   async function onChangePassword() {
     setPwMsg('')
     if (!pwState.currentPassword || !pwState.newPassword) {
@@ -162,7 +147,6 @@ export default function Settings() {
     }
   }
 
-  // Avatar upload
   async function onUploadAvatar(e) {
     const file = e?.target?.files?.[0]
     if (!file) return
@@ -180,7 +164,6 @@ export default function Settings() {
       })
       if (data?.avatarUrl) {
         setForm(prev => ({ ...prev, avatarUrl: data.avatarUrl }))
-        // refresh user so navbar shows new avatar
         if (typeof refreshUser === 'function') {
           try { await refreshUser() } catch {}
         }
@@ -245,33 +228,33 @@ export default function Settings() {
     <div className="max-w-5xl mx-auto p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold">Settings</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold text-slate-900 dark:text-slate-100">Settings</h1>
           <p className="text-sm text-gray-500">Manage account, security, notifications and appearance</p>
         </div>
       </div>
 
       <form onSubmit={onSave} className="space-y-6">
         {/* Account */}
-        <section className="card p-4">
-          <h2 className="font-medium mb-2">Account</h2>
+        <section className="card p-4 bg-white/5 border border-slate-800 rounded-lg">
+          <h2 className="font-medium mb-2 text-lg text-slate-100">Account</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="md:col-span-2 space-y-3">
-              <label className="text-xs text-gray-500">Username (editable)</label>
+              <label className="text-xs text-slate-400">Username (editable)</label>
               <input
                 value={form.username}
                 onChange={e => update('username', e.target.value)}
-                className="w-full rounded-lg border px-3 py-2"
+                className="w-full rounded-lg bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2 text-lg"
               />
 
-              <label className="text-xs text-gray-500">Email (read-only)</label>
-              <input value={form.email} readOnly className="w-full rounded-lg border px-3 py-2 bg-gray-50" />
+              <label className="text-xs text-slate-400">Email (read-only)</label>
+              <input value={form.email} readOnly className="w-full rounded-lg bg-slate-900/40 border border-slate-700 text-slate-300 px-3 py-2" />
 
               <div className="flex items-center gap-3 mt-2">
                 <label className="rounded bg-indigo-600 text-white px-3 py-2 cursor-pointer">
                   {avatarUploading ? 'Uploading…' : 'Change avatar'}
                   <input ref={fileRef} type="file" accept="image/*" onChange={onUploadAvatar} className="hidden" />
                 </label>
-                <button type="button" onClick={onRemoveAvatar} className="rounded border px-3 py-2">Remove avatar</button>
+                <button type="button" onClick={onRemoveAvatar} className="rounded border px-3 py-2 text-slate-100">Remove avatar</button>
                 <button
                   type="button"
                   onClick={() => {
@@ -279,20 +262,20 @@ export default function Settings() {
                       alert('Local sign out not implemented here. Use profile menu to sign out.');
                     }
                   }}
-                  className="rounded border px-3 py-2"
+                  className="rounded border px-3 py-2 text-slate-100"
                 >
                   Sign out (this browser)
                 </button>
               </div>
 
-              <div className="text-sm text-gray-400 mt-2">Signed in as <span className="font-medium">{user?.name || user?.email}</span></div>
+              <div className="text-sm text-slate-400 mt-2">Signed in as <span className="font-medium text-slate-200">{user?.name || user?.email}</span></div>
             </div>
 
             <div className="flex items-center justify-center">
               {form.avatarUrl ? (
                 <img src={form.avatarUrl} alt="avatar" className="w-28 h-28 rounded-full object-cover" />
               ) : (
-                <div className="w-28 h-28 rounded-full bg-gray-100 flex items-center justify-center text-2xl text-indigo-600">
+                <div className="w-28 h-28 rounded-full bg-slate-800 flex items-center justify-center text-2xl text-cyan-300">
                   {form.username ? form.username.charAt(0).toUpperCase() : (form.email || 'U').charAt(0).toUpperCase()}
                 </div>
               )}
@@ -301,87 +284,86 @@ export default function Settings() {
         </section>
 
         {/* Security */}
-        <section className="card p-4">
-          <h2 className="font-medium mb-2">Security</h2>
+        <section className="card p-4 bg-white/5 border border-slate-800 rounded-lg">
+          <h2 className="font-medium mb-2 text-lg text-slate-100">Security</h2>
           <div className="space-y-3">
-            {/* password inputs handled by button handler (not nested <form>) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
               <div>
-                <label className="text-xs text-gray-500">Current password</label>
-                <input autoComplete="current-password" type="password" value={pwState.currentPassword} onChange={e=>setPwState(s=>({...s,currentPassword:e.target.value}))} className="w-full rounded border px-3 py-2" />
+                <label className="text-xs text-slate-400">Current password</label>
+                <input autoComplete="current-password" type="password" value={pwState.currentPassword} onChange={e=>setPwState(s=>({...s,currentPassword:e.target.value}))} className="w-full rounded bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2" />
               </div>
               <div>
-                <label className="text-xs text-gray-500">New password</label>
-                <input autoComplete="new-password" type="password" value={pwState.newPassword} onChange={e=>setPwState(s=>({...s,newPassword:e.target.value}))} className="w-full rounded border px-3 py-2" />
+                <label className="text-xs text-slate-400">New password</label>
+                <input autoComplete="new-password" type="password" value={pwState.newPassword} onChange={e=>setPwState(s=>({...s,newPassword:e.target.value}))} className="w-full rounded bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2" />
               </div>
               <div>
-                <label className="text-xs text-gray-500">Confirm</label>
-                <input autoComplete="new-password" type="password" value={pwState.confirm} onChange={e=>setPwState(s=>({...s,confirm:e.target.value}))} className="w-full rounded border px-3 py-2" />
+                <label className="text-xs text-slate-400">Confirm</label>
+                <input autoComplete="new-password" type="password" value={pwState.confirm} onChange={e=>setPwState(s=>({...s,confirm:e.target.value}))} className="w-full rounded bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2" />
                 <div className="mt-2">
                   <button type="button" onClick={onChangePassword} className="rounded bg-indigo-600 text-white px-3 py-2">Change password</button>
                 </div>
-                {pwMsg && <div className="text-sm text-red-600 mt-1">{pwMsg}</div>}
+                {pwMsg && <div className="text-sm text-red-500 mt-1">{pwMsg}</div>}
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <label className="text-sm">Enable 2-factor (placeholder)</label>
+              <label className="text-sm text-slate-300">Enable 2-factor (placeholder)</label>
               <input type="checkbox" checked={false} readOnly className="ml-auto" />
             </div>
 
             <div className="flex items-center gap-3">
-              <button type="button" onClick={onRevokeSessions} className="rounded border px-3 py-2">Sign out everywhere</button>
-              {revokeMsg && <div className="text-sm text-green-600">{revokeMsg}</div>}
+              <button type="button" onClick={onRevokeSessions} className="rounded border px-3 py-2 text-slate-100">Sign out everywhere</button>
+              {revokeMsg && <div className="text-sm text-green-400">{revokeMsg}</div>}
             </div>
           </div>
         </section>
 
         {/* Notifications */}
-        <section className="card p-4">
-          <h2 className="font-medium mb-2">Notifications & reminders</h2>
+        <section className="card p-4 bg-white/5 border border-slate-800 rounded-lg">
+          <h2 className="font-medium mb-2 text-lg text-slate-100">Notifications & reminders</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
             <div>
-              <label className="text-xs text-gray-500">Email notifications</label>
+              <label className="text-xs text-slate-400">Email notifications</label>
               <div className="mt-1">
                 <input type="checkbox" checked={form.emailEnabled} onChange={e=>update('emailEnabled', e.target.checked)} />
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-gray-500">Push notifications</label>
+              <label className="text-xs text-slate-400">Push notifications</label>
               <div className="mt-1">
                 <input type="checkbox" checked={form.pushEnabled} onChange={e=>update('pushEnabled', e.target.checked)} />
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-gray-500">Reminder threshold (days)</label>
-              <select value={form.reminderDays} onChange={e=>update('reminderDays', Number(e.target.value))} className="w-full rounded border px-3 py-2">
+              <label className="text-xs text-slate-400">Reminder threshold (days)</label>
+              <select value={form.reminderDays} onChange={e=>update('reminderDays', Number(e.target.value))} className="w-full rounded bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2">
                 {[1,3,7].map(n=> <option key={n} value={n}>{n} day(s)</option>)}
               </select>
             </div>
 
             <div className="md:col-span-2 mt-2">
-              <label className="text-xs text-gray-500">Digest schedule</label>
+              <label className="text-xs text-slate-400">Digest schedule</label>
               <div className="mt-1">
-                <select value={form.digest} onChange={e=>update('digest', e.target.value)} className="rounded border px-3 py-2">
+                <select value={form.digest} onChange={e=>update('digest', e.target.value)} className="rounded bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2">
                   <option value="off">Off</option>
                   <option value="daily">Daily</option>
                   <option value="weekly">Weekly</option>
                 </select>
-                <button type="button" onClick={onTestNotification} className="ml-3 underline text-sm">Test notification</button>
+                <button type="button" onClick={onTestNotification} className="ml-3 underline text-sm text-slate-300">Test notification</button>
               </div>
             </div>
           </div>
         </section>
 
         {/* Appearance */}
-        <section className="card p-4">
-          <h2 className="font-medium mb-2">Appearance</h2>
+        <section className="card p-4 bg-white/5 border border-slate-800 rounded-lg">
+          <h2 className="font-medium mb-2 text-lg text-slate-100">Appearance</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
             <div>
-              <label className="text-xs text-gray-500">Theme</label>
-              <select value={form.theme} onChange={e=>update('theme', e.target.value)} className="w-full rounded border px-3 py-2">
+              <label className="text-xs text-slate-400">Theme</label>
+              <select value={form.theme} onChange={e=>update('theme', e.target.value)} className="w-full rounded bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2">
                 <option value="light">Light</option>
                 <option value="dark">Dark</option>
                 <option value="system">System</option>
@@ -389,16 +371,16 @@ export default function Settings() {
             </div>
 
             <div>
-              <label className="text-xs text-gray-500">Accent</label>
+              <label className="text-xs text-slate-400">Accent</label>
               <div className="mt-1">
-                <input type="color" value={form.accent} onChange={e=>update('accent', e.target.value)} />
+                <input type="color" value={form.accent} onChange={e=>update('accent', e.target.value)} className="w-12 h-10 p-0 rounded-md border border-slate-700" />
               </div>
             </div>
 
             <div>
-              <label className="text-xs text-gray-500">Layout density</label>
+              <label className="text-xs text-slate-400">Layout density</label>
               <div className="mt-1">
-                <select value={form.compact ? 'compact' : 'spacious'} onChange={e=>update('compact', e.target.value === 'compact')}>
+                <select value={form.compact ? 'compact' : 'spacious'} onChange={e=>update('compact', e.target.value === 'compact')} className="rounded bg-slate-800 border border-slate-700 text-slate-100 px-3 py-2">
                   <option value="spacious">Spacious</option>
                   <option value="compact">Compact</option>
                 </select>
