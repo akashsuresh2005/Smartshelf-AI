@@ -29,35 +29,74 @@
 //     }
 //   })
 // }
+// src/utils/cronJobs.js
 import cron from 'node-cron';
 import Item from '../models/Item.js';
-import User from '../models/User.js';
+import { sendPushToUser } from '../utils/push.js';
 import { sendEmail } from './mailer.js';
+import Notification from '../models/Notification.js';
 
+/**
+ * initCronJobs()
+ * - Uses CRON_SCHEDULE env var (optional)
+ * - Default: run daily at 09:00 (server timezone) => '0 9 * * *'
+ * - For testing set CRON_SCHEDULE='* * * * *' to run every minute.
+ */
 export function initCronJobs() {
-  cron.schedule('0 9 * * *', async () => {
-    console.log('[CRON] Checking expiring items...');
-    const today = new Date();
+  const schedule = process.env.CRON_SCHEDULE || '0 9 * * *';
+  console.log('[cron] starting expiry cron with schedule:', schedule);
 
-    const users = await User.find({}, { email: 1 });
+  cron.schedule(schedule, async () => {
+    console.log('[cron] Checking expiring items...');
+    try {
+      const now = new Date();
+      const in7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    for (const user of users) {
-      const items = await Item.find({ userId: user._id, status: 'active' });
+      // Find active items expiring within 7 days and not notified yet
+      const expiringItems = await Item.find({
+        status: 'active',
+        expiryDate: { $gte: now, $lte: in7 },
+        notified: { $ne: true }
+      }).lean();
 
-      const expiring = items.filter(i => {
-        const diff = Math.ceil((new Date(i.expiryDate) - today) / (1000 * 60 * 60 * 24));
-        return diff >= 0 && diff <= 7;
-      });
+      console.log('[cron] found', expiringItems.length, 'expiring items');
 
-      if (!expiring.length) continue;
+      for (const item of expiringItems) {
+        try {
+          const userId = item.userId;
+          const title = `Expiry alert: ${item.name}`;
+          const body = `${item.name} expires on ${new Date(item.expiryDate).toLocaleDateString()}`;
 
-      const msg = expiring
-        .map(i => `${i.name} — expires on ${new Date(i.expiryDate).toLocaleDateString()}`)
-        .join('\n');
+          // Persist a Notification record for history (non-blocking)
+          await Notification.create({
+            userId,
+            itemId: item._id,
+            title,
+            message: body,
+            type: 'push'
+          }).catch(e => console.warn('[cron] warning notification save failed', e?.message || e));
 
-      await sendEmail(user.email, 'Daily Expiry Summary', msg);
+          // Send push to specific user
+          await sendPushToUser(userId, title, body).catch(e => {
+            console.error('[cron] push send error for item', item._id, e && e.statusCode || e);
+          });
+
+          // Optionally send email too (keep original behavior)
+          try {
+            const emailsent = await sendEmail(item.email || null, title, body).catch(() => {});
+            // ignore if email not configured
+          } catch {}
+
+          // Mark as notified so we don't spam users; update item (set notified true)
+          await Item.updateOne({ _id: item._id }, { $set: { notified: true, notifiedAt: new Date() } });
+          console.log('[cron] marked item notified', item._id);
+        } catch (inner) {
+          console.error('[cron] error processing item', item._id, inner);
+        }
+      }
+    } catch (err) {
+      console.error('[cron] failure', err);
     }
-
-    console.log('[CRON] Done.');
-  });
+    console.log('[cron] Done.');
+  }, { timezone: process.env.CRON_TZ || 'UTC' });
 }

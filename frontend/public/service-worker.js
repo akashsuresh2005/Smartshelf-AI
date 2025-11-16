@@ -1,4 +1,4 @@
-/* service-worker.js — Safe GET-only caching + Push */
+/* public/service-worker.js — Safe GET-only caching + robust Push handling */
 
 const CACHE_NAME = 'shelfai-cache-v3';
 const ASSETS = [
@@ -17,11 +17,12 @@ self.addEventListener('install', (event) => {
         try {
           const res = await fetch(url, { cache: 'no-cache' });
           if (res && res.ok) await cache.put(url, res.clone());
-        } catch {
+        } catch (err) {
           // ignore individual asset fetch failures during dev
         }
       }
     } finally {
+      // activate worker immediately
       self.skipWaiting();
     }
   })());
@@ -30,76 +31,109 @@ self.addEventListener('install', (event) => {
 /* ---------------- Activate: remove old caches ---------------- */
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    const keys = await caches.keys();
-    await Promise.all(
-      keys.map((k) => (k !== CACHE_NAME ? caches.delete(k) : undefined))
-    );
-    await self.clients.claim();
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => (k !== CACHE_NAME ? caches.delete(k) : undefined)));
+      await self.clients.claim();
+    } catch (err) {
+      // ignore
+    }
   })());
 });
 
-/* ---------------- Fetch strategy ----------------
-   - Only handle GET. Ignore POST/PUT/PATCH/DELETE to avoid errors.
-   - /api/** : network-first, fallback to cache if offline.
-   - everything else (static): cache-first, then network + cache.
+/* ---------------- Fetch strategy (only GET handled) ----------------
+   - /api/**  -> network-first, fallback to cache
+   - static  -> cache-first, then network + cache
 --------------------------------------------------*/
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-
-  // Only cache GET requests
   if (req.method !== 'GET') return;
-
   const url = new URL(req.url);
 
-  // API → network-first
+  // API requests -> network-first
   if (url.pathname.startsWith('/api')) {
     event.respondWith((async () => {
       try {
         const res = await fetch(req);
-        // Only cache successful, basic/opaque GET responses
         try {
           const cache = await caches.open(CACHE_NAME);
-          cache.put(req, res.clone());
+          cache.put(req, res.clone()).catch(() => {});
         } catch {}
         return res;
       } catch {
         const cached = await caches.match(req);
-        return cached || new Response(
-          JSON.stringify({ error: 'offline' }),
-          { status: 503, headers: { 'Content-Type': 'application/json' } }
-        );
+        return cached || new Response(JSON.stringify({ error: 'offline' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
     })());
     return;
   }
 
-  // Static → cache-first
+  // Static assets -> cache-first
   event.respondWith((async () => {
     const cached = await caches.match(req);
     if (cached) return cached;
     const res = await fetch(req);
     try {
       const cache = await caches.open(CACHE_NAME);
-      cache.put(req, res.clone());
+      cache.put(req, res.clone()).catch(() => {});
     } catch {}
     return res;
   })());
 });
 
-/* ---------------- Push notifications ---------------- */
+/* ---------------- Push handler (robust, accepts JSON or text) ---------------- */
 self.addEventListener('push', (event) => {
   let data = {};
-  try { data = event.data ? event.data.json() : {}; } catch {}
+  try {
+    if (event.data) {
+      // Try JSON first, fallback to text
+      try {
+        data = event.data.json();
+      } catch (e) {
+        try {
+          const text = event.data.text ? event.data.text() : String(event.data);
+          data = { body: text };
+        } catch (e2) {
+          data = { body: 'You have a message' };
+        }
+      }
+    }
+  } catch (e) {
+    data = { body: 'You have a message' };
+  }
 
   const title = data.title || 'Notification';
   const options = {
     body: data.body || 'You have a message',
-    icon: '/icons/icon-192.png',  // keep if you have these files
-    badge: '/icons/badge-72.png', // optional
-    data
+    icon: data.icon || '/icons/icon-192.png',
+    badge: data.badge || '/icons/badge-72.png',
+    data: data
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  // Show the notification — guard with try/catch to avoid uncaught promise
+  event.waitUntil((async () => {
+    try {
+      await self.registration.showNotification(title, options);
+      // Optionally, inform clients that a push arrived (useful for UI updates)
+      try {
+        const allClients = await clients.matchAll({ includeUncontrolled: true });
+        for (const c of allClients) {
+          c.postMessage({ type: 'PUSH_RECEIVED', title, body: options.body, data });
+        }
+      } catch {}
+    } catch (err) {
+      // If notification fails (e.g. permission issues), notify clients so they can surface it
+      try {
+        const allClients = await clients.matchAll({ includeUncontrolled: true });
+        for (const c of allClients) {
+          c.postMessage({ type: 'PUSH_IGNORED', reason: String(err), data });
+        }
+      } catch {}
+    }
+  })());
 });
 
 /* ---------------- Click → focus or open app ---------------- */
@@ -107,10 +141,19 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil((async () => {
-    const clientsList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const c of clientsList) {
-      if (c.url.includes(self.location.origin)) return c.focus();
+    try {
+      const clientsList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const c of clientsList) {
+        // focus an open window that matches origin
+        if (c.url && c.url.includes(self.location.origin)) {
+          try { c.focus(); } catch {}
+          return;
+        }
+      }
+      // open a new window/tab if none found
+      return clients.openWindow(targetUrl);
+    } catch (err) {
+      // ignore
     }
-    return clients.openWindow(targetUrl);
   })());
 });

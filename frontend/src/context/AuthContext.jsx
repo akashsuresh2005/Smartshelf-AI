@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../utils/api.js';
 import logActivity from '../utils/logActivity.js';
+import { ensureSubscribed } from '../utils/pushClient.js'; // <- added
 
 const AuthContext = createContext(null);
 
@@ -81,6 +82,15 @@ export function AuthProvider({ children }) {
         message: `User logged in (${payload.email})`
       });
     } catch {}
+
+    // ensure subscription is created and POSTed while user is authenticated
+    // non-blocking: if it fails we log and continue (won't break login)
+    try {
+      await ensureSubscribed();
+      console.log('[Auth] ensureSubscribed succeeded');
+    } catch (e) {
+      console.warn('[Auth] ensureSubscribed failed', e);
+    }
   };
 
   // logout: clear token, log activity and redirect

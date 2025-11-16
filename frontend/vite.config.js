@@ -25,6 +25,7 @@
 
 // vite.config.js
 // vite.config.js
+// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -57,12 +58,15 @@ export default defineConfig({
     }
   },
 
-  // HMR config — explicit host/port for websocket handshake
+  // HMR / dev server config — explicit host/port for websocket handshake
   server: {
+    host: true,       // listen on all interfaces (useful if you open via another IP). Change to 'localhost' if needed.
+    port: 5173,
     hmr: {
       protocol: 'ws',
-      host: 'localhost',
-      port: 5173
+      host: 'localhost',   // the hostname the browser uses (change to the IP/hostname you browse to)
+      port: 5173,
+      clientPort: 5173     // ensures the client tries to connect to this port
     }
   }
 })
