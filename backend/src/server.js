@@ -1,3 +1,4 @@
+// server.js
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -18,6 +19,12 @@ import settingsRoutes from './routes/settingsRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initCronJobs } from './utils/cronJobs.js';
 
+// fetch for Node < 18
+import fetch from 'node-fetch';
+
+// For diagnostics
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '.env') });
@@ -32,7 +39,7 @@ console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV || 'dev');
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
-/** CORS: allow configured FE + common local dev origins */
+/** CORS */
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:5173',
   'http://localhost:3000',
@@ -44,7 +51,6 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, cb) => {
-      // allow non-browser (curl/postman) requests that have no origin
       if (!origin) return cb(null, true);
       if (allowedOrigins.includes(origin)) return cb(null, true);
       return cb(new Error('Not allowed by CORS'));
@@ -55,10 +61,9 @@ app.use(
 
 app.use(morgan('dev'));
 
-/** Serve static files (public/uploads, assets, etc.) */
+/** Serve static files */
 const publicDir = path.resolve(process.cwd(), 'public');
 app.use(express.static(publicDir));
-// make sure uploads are accessible under /uploads/...
 app.use('/uploads', express.static(path.join(publicDir, 'uploads')));
 
 /** Health check */
@@ -66,7 +71,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', env: process.env.NODE_ENV || 'dev' });
 });
 
-/** Routes - mount API routers BEFORE the 404 */
+/** Routes */
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -75,19 +80,55 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/activity', activityRoutes);
-
-/** SETTINGS: mount settings routes */
 app.use('/api/users', settingsRoutes);
 
-/** 404 for unknown routes (before error handler) */
+/* ---------------------------------------------------------------------
+   TEMPORARY ROUTE:  /api/ai/models
+   Lists available Gemini models using REST API. This is ONLY for testing.
+   Remove later if you want. Does NOT affect your AI or other features.
+------------------------------------------------------------------------*/
+app.get('/api/ai/models', async (req, res) => {
+  try {
+    const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (!key) return res.status(400).json({ error: 'No GEMINI_API_KEY/GOOGLE_API_KEY configured' });
+
+    const base = 'https://generativelanguage.googleapis.com/v1/models';
+
+    // Try the default ?key= API style
+    let response = await fetch(`${base}?key=${encodeURIComponent(key)}`, { method: 'GET' });
+    let body = await response.json();
+
+    // If key must be in Authorization header
+    if (response.status === 401 || response.status === 403) {
+      response = await fetch(base, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${key}` }
+      });
+      body = await response.json();
+    }
+
+    return res.json({
+      status: response.status,
+      models: body
+    });
+
+  } catch (err) {
+    console.error('[AI models route] error:', err?.message || err);
+    return res.status(500).json({ error: String(err?.message || err) });
+  }
+});
+/* --------------------------------------------------------------------- */
+
+
+/** 404 handler */
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-/** Central error handler (must be last) */
+/** Central error handler */
 app.use(errorHandler);
 
-/** Bootstrap */
+/** Start server */
 const port = process.env.PORT || 5000;
 
 connectDB()

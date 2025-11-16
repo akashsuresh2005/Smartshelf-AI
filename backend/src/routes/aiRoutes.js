@@ -1,7 +1,11 @@
-import { Router } from 'express'
-import { chat } from '../controllers/aiController.js'
-import { requireAuth } from '../middleware/authMiddleware.js'
+// src/routes/aiRoutes.js
+import { Router } from 'express';
+import { chat } from '../controllers/aiController.js';
+import { requireAuth } from '../middleware/authMiddleware.js';
 
-const router = Router()
-router.post('/chat', requireAuth, chat)
-export default router
+const router = Router();
+
+// POST /api/ai/chat
+router.post('/chat', requireAuth, chat);
+
+export default router;

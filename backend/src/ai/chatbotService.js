@@ -1,3 +1,4 @@
+// src/ai/chatbotService.js
 import Item from '../models/Item.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
@@ -34,8 +35,7 @@ async function generateWithFallback(genAI, prompt) {
   // Use cached model if already found
   if (_modelId) {
     const model = genAI.getGenerativeModel({ model: _modelId });
-    const res = await model.generateContent(prompt);
-    return res;
+    return await model.generateContent(prompt);
   }
   // Try candidates until one works, then cache it
   let lastErr;
@@ -49,9 +49,8 @@ async function generateWithFallback(genAI, prompt) {
       return res;
     } catch (e) {
       lastErr = e;
-      // Only log 404s briefly (expected when model not available)
       const msg = String(e?.message || e);
-      if (msg.includes('404') || msg.includes('not found')) {
+      if (msg.includes('404') || msg.toLowerCase().includes('not found')) {
         console.warn('[AI] Model not available:', id);
       } else {
         console.error('[AI] Model error for', id, ':', msg);
@@ -61,7 +60,7 @@ async function generateWithFallback(genAI, prompt) {
   throw lastErr || new Error('No Gemini models available');
 }
 
-// ---------- helpers below unchanged ----------
+// ---------- helpers ----------
 function getLastUserText(messages) {
   try {
     if (!Array.isArray(messages) || messages.length === 0) return '';
@@ -71,6 +70,7 @@ function getLastUserText(messages) {
       if (typeof last.content === 'string') return last.content;
       if (typeof last.text === 'string') return last.text;
       if (Array.isArray(last.parts) && last.parts[0]?.text) return last.parts[0].text;
+      if (last.role && last.role === 'user' && last.content) return last.content;
     }
   } catch {}
   return '';
@@ -88,15 +88,15 @@ async function buildInventoryContext(userId) {
   ]);
   const soonList = soonItems.map(i => `${i.name} (${i.category}) – ${new Date(i.expiryDate).toLocaleDateString()}`).join('\n');
   const counts = totals.map(t => `${t._id}: ${t.count}`).join(', ') || 'no items';
-  return { soonList, counts };
+  return { soonList, counts, soonItems };
 }
 
 export async function chatWithAssistant(userId, messages = []) {
   const userText = String(getLastUserText(messages) || '').trim();
   const lower = userText.toLowerCase();
 
-  // DB intent (keep this exact behavior)
-  if (lower.includes('expiring') || lower.includes('next week')) {
+  // Quick DB intent: if user asks about expiring items, answer directly from DB
+  if (lower.includes('expir') || lower.includes('next week') || lower.includes('expiring') || lower.includes('which items are expiring')) {
     const now = new Date();
     const weekAhead = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const items = await Item.find({
@@ -110,7 +110,7 @@ export async function chatWithAssistant(userId, messages = []) {
     return `Items expiring within a week:\n- ${lines.join('\n- ')}`;
   }
 
-  // Everything else → Gemini with context
+  // All other queries → call Gemini with inventory context
   const genAI = getGenAI();
   if (!genAI) {
     return 'AI is not configured. Set GEMINI_API_KEY (or GOOGLE_API_KEY) in backend/.env and restart.';
@@ -125,10 +125,39 @@ export async function chatWithAssistant(userId, messages = []) {
 
     console.log('[AI] Calling Gemini…');
     const result = await generateWithFallback(genAI, prompt);
-    const text = (result?.response?.text && result.response.text())
-              || result?.response?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-    return text || 'I could not generate a response.';
+    // Robust extraction of text across model shapes
+    let text = '';
+    try {
+      if (!result) text = '';
+      else if (typeof result === 'string') text = result;
+      else {
+        // Many Gemini SDK shapes: try common access patterns
+        const r = result.response || result;
+        // candidate text function
+        if (r.text && typeof r.text === 'function') text = r.text();
+        else if (r.candidates && Array.isArray(r.candidates) && r.candidates[0]) {
+          // candidate content may be nested
+          const cand = r.candidates[0];
+          if (cand.content && Array.isArray(cand.content.parts) && cand.content.parts[0]) {
+            text = cand.content.parts[0].text;
+          } else if (cand.text) text = cand.text;
+        } else if (r.output && Array.isArray(r.output)) {
+          // some shapes provide output parts
+          text = r.output.map(o => o.text || o.content || '').join('\n');
+        } else if (result?.response?.candidates?.[0]?.content?.parts?.[0]?.text) {
+          text = result.response.candidates[0].content.parts[0].text;
+        } else {
+          // fallback to stringify
+          text = String(result?.response || result || '').slice(0, 2000);
+        }
+      }
+    } catch (e) {
+      console.warn('[AI] parse result error', e?.message || e);
+      text = '';
+    }
+
+    return (text && text.trim()) || 'I could not generate a response.';
   } catch (e) {
     console.error('[AI] Gemini error (final):', e?.message || e);
     return 'I had trouble generating a response. Please try again.';

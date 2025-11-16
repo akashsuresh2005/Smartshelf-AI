@@ -11,11 +11,13 @@
 // }
 // aiController.js
 // backend/src/controllers/aiController.js
+// src/controllers/aiController.js
 import { chatWithAssistant } from '../ai/chatbotService.js';
 
 export async function chat(req, res, next) {
   try {
     let { messages } = req.body;
+    // Accept a plain string or an array of message objects
     if (!Array.isArray(messages)) {
       messages = typeof messages === 'string' ? [{ role: 'user', content: messages }] : [];
     }
@@ -25,4 +27,5 @@ export async function chat(req, res, next) {
     next(err);
   }
 }
+
 
