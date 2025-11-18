@@ -1,18 +1,8 @@
-// export default function CategoryFilter({ value, onChange }) {
-//   return (
-//     <select className="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500" value={value} onChange={(e) => onChange(e.target.value)}>
-//       <option value="groceries">Groceries</option>
-//       <option value="medicines">Medicines</option>
-//       <option value="cosmetics">Cosmetics</option>
-//       <option value="beverages">Beverages</option>
-//       <option value="others">Others</option>
-//     </select>
-//   )
-// }
+// src/components/CategoryFilter.jsx
 export default function CategoryFilter({ value, onChange }) {
   return (
     <select
-      className="w-full rounded-lg border-gray-200 focus:ring-2 focus:ring-blue-500"
+      className="w-full rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-300 px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
@@ -23,5 +13,5 @@ export default function CategoryFilter({ value, onChange }) {
       <option value="beverage">Beverages</option>
       <option value="other">Others</option>
     </select>
-  );
+  )
 }

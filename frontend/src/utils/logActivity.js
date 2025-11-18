@@ -1,4 +1,3 @@
-// src/utils/logActivity.js
 // Best-effort activity logger used by frontend.
 // Safe: does not require any other local helper files.
 

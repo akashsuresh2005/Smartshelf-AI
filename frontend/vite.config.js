@@ -59,14 +59,13 @@ export default defineConfig({
   },
 
   // HMR / dev server config — explicit host/port for websocket handshake
-  server: {
-    host: true,       // listen on all interfaces (useful if you open via another IP). Change to 'localhost' if needed.
-    port: 5173,
+    server: {
+    host: true,
+    strictPort: true,
     hmr: {
-      protocol: 'ws',
-      host: 'localhost',   // the hostname the browser uses (change to the IP/hostname you browse to)
+      protocol: "ws",
+      host: "localhost",
       port: 5173,
-      clientPort: 5173     // ensures the client tries to connect to this port
-    }
-  }
-})
+    },
+  },
+});

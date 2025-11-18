@@ -1,7 +1,8 @@
+// src/context/AuthContext.jsx
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import api from '../utils/api.js';
 import logActivity from '../utils/logActivity.js';
-import { ensureSubscribed } from '../utils/pushClient.js'; // <- added
+import { ensureSubscribed } from '../utils/pushClient.js';
 
 const AuthContext = createContext(null);
 
@@ -16,10 +17,18 @@ function decodeJwtPayload(jwt) {
 }
 
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem('token'));
+  const safeGetToken = () => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage ? localStorage.getItem('token') : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const [token, setToken] = useState(() => safeGetToken());
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(() => {
-    const t = localStorage.getItem('token');
+    const t = safeGetToken();
     return t ? decodeJwtPayload(t) : null;
   });
 
@@ -33,14 +42,14 @@ export function AuthProvider({ children }) {
         const payload = decodeJwtPayload(token);
         const now = Math.floor(Date.now() / 1000);
         if (!payload.exp || payload.exp <= now) {
-          localStorage.removeItem('token');
+          try { localStorage.removeItem('token'); } catch (e) {}
           setToken(null);
           setUser(null);
           return;
         }
         setUser(payload);
       } catch {
-        localStorage.removeItem('token');
+        try { localStorage.removeItem('token'); } catch (e) {}
         setToken(null);
         setUser(null);
       }
@@ -48,10 +57,9 @@ export function AuthProvider({ children }) {
     check().finally(() => setLoading(false));
   }, [token]);
 
-  // refreshUser: re-fetch server-side user doc and update context (use after profile/settings change)
   const refreshUser = async () => {
     try {
-      const { data } = await api.get('/users/me'); // /api/users/me
+      const data = await api.get('/users/me');
       if (data) {
         setUser(data);
         return data;
@@ -59,7 +67,7 @@ export function AuthProvider({ children }) {
       return null;
     } catch (err) {
       if (err?.response?.status === 401) {
-        localStorage.removeItem('token');
+        try { localStorage.removeItem('token'); } catch {}
         setToken(null);
         setUser(null);
       }
@@ -67,35 +75,37 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // login: store token, set user, and log activity
   const login = async (newToken) => {
-    localStorage.setItem('token', newToken);
-    setToken(newToken);
-    const payload = decodeJwtPayload(newToken);
-    setUser(payload);
-
     try {
-      await logActivity({
-        userId: payload.id,
-        userName: payload.name || payload.email,
-        type: 'auth:login',
-        message: `User logged in (${payload.email})`
-      });
-    } catch {}
+      if (newToken) {
+        try { localStorage.setItem('token', newToken); } catch (e) { console.warn('localStorage write failed', e); }
+        setToken(newToken);
+      }
+      const payload = decodeJwtPayload(newToken || '');
+      setUser(payload);
 
-    // ensure subscription is created and POSTed while user is authenticated
-    // non-blocking: if it fails we log and continue (won't break login)
-    try {
-      await ensureSubscribed();
-      console.log('[Auth] ensureSubscribed succeeded');
+      try {
+        await logActivity({
+          userId: payload.id,
+          userName: payload.name || payload.email,
+          type: 'auth:login',
+          message: `User logged in (${payload.email})`
+        });
+      } catch {}
+
+      try {
+        await ensureSubscribed();
+        console.log('[Auth] ensureSubscribed succeeded');
+      } catch (e) {
+        console.warn('[Auth] ensureSubscribed failed', e);
+      }
     } catch (e) {
-      console.warn('[Auth] ensureSubscribed failed', e);
+      console.warn('[Auth] login error', e);
     }
   };
 
-  // logout: clear token, log activity and redirect
   const logout = async () => {
-    const payload = user || decodeJwtPayload(localStorage.getItem('token') || '');
+    const payload = user || decodeJwtPayload(safeGetToken() || '');
     try {
       if (payload && payload.id) {
         await logActivity({
@@ -106,10 +116,10 @@ export function AuthProvider({ children }) {
         });
       }
     } catch {}
-    localStorage.removeItem('token');
+    try { localStorage.removeItem('token'); } catch {}
     setToken(null);
     setUser(null);
-    window.location.replace('/login');
+    if (typeof window !== 'undefined') window.location.replace('/login');
   };
 
   const value = useMemo(
@@ -121,3 +131,4 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
+

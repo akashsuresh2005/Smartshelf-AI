@@ -12,4 +12,11 @@ const notificationSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+// Prevent duplicates at DB level: one (userId,itemId,type,title) combination
+// Partial index so notifications not tied to an item are unaffected.
+notificationSchema.index(
+  { userId: 1, itemId: 1, type: 1, title: 1 },
+  { unique: true, partialFilterExpression: { itemId: { $exists: true } } }
+)
+
 export default mongoose.model('Notification', notificationSchema)

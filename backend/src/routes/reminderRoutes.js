@@ -1,25 +1,11 @@
-import { Router } from 'express';
-import { requireAuth } from '../middleware/authMiddleware.js';
-import Item from '../models/Item.js';
+// backend/src/routes/reminderRoutes.js
+import { Router } from 'express'
+import { requireAuth } from '../middleware/authMiddleware.js'
+import { getUpcomingReminders } from '../controllers/reminderController.js'
 
-const router = Router();
+const router = Router()
 
-router.get('/', requireAuth, async (req, res, next) => {
-  try {
-    const now = new Date();
-    const in3 = new Date();
-    in3.setDate(now.getDate() + 3);
+router.get('/', requireAuth, getUpcomingReminders)
 
-    const items = await Item.find({
-      userId: req.user.id,
-      status: { $ne: 'consumed' },
-      expiryDate: { $gte: now, $lte: in3 }
-    }).sort({ expiryDate: 1 });
+export default router
 
-    res.json(items);
-  } catch (err) {
-    next(err);
-  }
-});
-
-export default router;

@@ -1,3 +1,4 @@
+// src/App.jsx - Dark Theme with Larger Fonts
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/Navbar.jsx'
@@ -41,10 +42,10 @@ export default function App() {
 
   const Protected = ({ children }) => (isAuthenticated ? children : <Navigate to="/login" replace />)
 
-  if (loading) return <div className="p-6 text-gray-500">Loading…</div>
+  if (loading) return <div className="p-6 text-slate-400 bg-slate-950 min-h-screen text-base">Loading…</div>
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-950">
       <Navbar onMenu={() => setSidebarOpen((v) => !v)} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
