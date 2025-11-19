@@ -5,9 +5,21 @@ dotenv.config();
 import fetch from "node-fetch";
 
 const API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+let GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
-// Strict SmartShelf AI prompt
-const wrapPrompt = (userMessage) => `
+/**
+ * Normalize model name: API expects plain "gemini-2.0-flash" (not "models/...")
+ */
+function normalizeModelName(m) {
+  if (!m || typeof m !== "string") return "gemini-2.0-flash";
+  return m.replace(/^models\//i, "").trim();
+}
+GEMINI_MODEL = normalizeModelName(GEMINI_MODEL);
+
+// Prompt wrapper
+const wrapPrompt = (userMessage) => {
+  const safeMsg = (userMessage ?? "").toString().trim();
+  return `
 You are SmartShelf AI — a friendly, proactive, confident assistant.
 
 You MUST follow this exact structure:
@@ -25,7 +37,7 @@ You MUST follow this exact structure:
 4) Optional question: <ask ONE question only IF needed>
 
 Voice Rules:
-- Never say “sorry”.
+- Never say "sorry".
 - Never apologize.
 - Never invent SmartShelf DB values.
 - For general questions (recipes, storage tips, suggestions), use general knowledge.
@@ -34,12 +46,65 @@ Voice Rules:
 - Always be confident.
 
 User message:
-"${userMessage}"
-`;
+"${safeMsg}"
+`.trim();
+};
+
+// Robust extractor for candidate shapes
+function extractTextFromCandidate(candidate) {
+  if (!candidate) return "";
+
+  // 1) Newer shape: candidate.content.parts
+  try {
+    const parts = candidate?.content?.parts;
+    if (Array.isArray(parts) && parts.length) {
+      return parts
+        .map((p) => {
+          if (typeof p === "string") return p;
+          if (p && typeof p === "object") return p.text ?? JSON.stringify(p);
+          return String(p);
+        })
+        .join("\n\n")
+        .trim();
+    }
+  } catch (e) {}
+
+  // 2) Common properties
+  if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+  if (typeof candidate.text === "string" && candidate.text.trim()) return candidate.text.trim();
+  if (typeof candidate.output === "string" && candidate.output.trim()) return candidate.output.trim();
+
+  // 3) Structured object with summary/details/items
+  if (candidate && typeof candidate === "object") {
+    const summary = candidate.summary || candidate.title || "";
+    const details = candidate.details || candidate.body || candidate.message || "";
+    const items = candidate.items;
+    const parts = [];
+    if (summary) parts.push(String(summary));
+    if (details) parts.push(String(details));
+    if (Array.isArray(items) && items.length) {
+      parts.push("Items: " + items.map((it) => (it.name ? `${it.name}` : JSON.stringify(it))).join(", "));
+    }
+    const txt = parts.join("\n\n").trim();
+    if (txt) return txt;
+  }
+
+  // 4) Last resort: JSON stringify
+  try {
+    return JSON.stringify(candidate, null, 2);
+  } catch (e) {
+    return String(candidate);
+  }
+}
 
 export default async function llmFormatter(userMessage) {
   if (!API_KEY) {
-    return "Summary: I’m ready to help.\n\nDetails:\n• Add GEMINI_API_KEY to enable advanced suggestions.\n\nSuggested actions:\n1. Add API key.\n2. Try a database query.\n3. Try again.\n\nsource: SmartShelf AI Local";
+    return (
+      "Summary: I’m ready to help.\n\n" +
+      "Details:\n• Add GEMINI_API_KEY to enable advanced suggestions.\n\n" +
+      "Suggested actions:\n1. Add API key.\n2. Try a database query.\n3. Try again.\n\n" +
+      "source: SmartShelf AI Local"
+    );
   }
 
   const payload = {
@@ -51,25 +116,57 @@ export default async function llmFormatter(userMessage) {
     ]
   };
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      }
-    );
+  // Build endpoint (normalized model name)
+  const endpoint = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(
+    GEMINI_MODEL
+  )}:generateContent?key=${API_KEY}`;
 
-    const data = await response.json();
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch (parseErr) {
+      console.error("[LLM Formatter] failed to parse JSON response:", parseErr);
+      data = null;
+    }
+
+    if (!response.ok) {
+      console.warn(`[LLM Formatter] non-OK response: ${response.status} ${response.statusText}`, data || "(no body)");
+      // try extract something useful from error or candidate
+      const fallbackCandidate = data?.error || data?.candidates?.[0] || data;
+      const extracted = extractTextFromCandidate(fallbackCandidate);
+      if (extracted) return extracted;
+      return (
+        "Summary: I’m here but the AI service returned an error.\n\n" +
+        "Details:\n• The model may be unavailable or overloaded.\n• Check GEMINI_MODEL and GEMINI_API_KEY settings.\n\n" +
+        "Suggested actions:\n1. Try again later.\n2. Use gemini-2.0-flash or gemini-pro.\n3. Verify API key and quotas.\n\n" +
+        "source: SmartShelf AI"
+      );
+    }
+
+    // successful response: extract best candidate
+    const candidate = data?.candidates?.[0] ?? data?.output ?? data;
+    const extracted = extractTextFromCandidate(candidate);
 
     const output =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "Summary: I can help with that.\n\nDetails:\n• Ask me anything.\n\nSuggested actions:\n1. Try again.\n2. Ask about items.\n3. Use SmartShelf actions.\n\nsource: SmartShelf AI";
+      extracted && typeof extracted === "string" && extracted.trim()
+        ? extracted.trim()
+        : "Summary: I can help with that.\n\nDetails:\n• Ask me anything.\n\nSuggested actions:\n1. Try again.\n2. Ask about items.\n3. Use SmartShelf actions.\n\nsource: SmartShelf AI";
 
     return output;
   } catch (err) {
     console.error("[LLM Formatter Error]", err);
-    return "Summary: I’m here to help.\n\nDetails:\n• AI formatting temporarily unavailable.\n• You can still ask about your SmartShelf items.\n\nSuggested actions:\n1. Retry.\n2. Ask an item question.\n3. Check connection.\n\nsource: Local fallback";
+    return (
+      "Summary: I’m here to help.\n\n" +
+      "Details:\n• AI formatting temporarily unavailable.\n• You can still ask about your SmartShelf items.\n\n" +
+      "Suggested actions:\n1. Retry.\n2. Ask an item question.\n3. Check connection.\n\n" +
+      "source: Local fallback"
+    );
   }
 }

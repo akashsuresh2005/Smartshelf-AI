@@ -7,7 +7,8 @@ export default function ChatBotAssistant() {
   const [messages, setMessages] = useState([
     {
       from: "bot",
-      text: "Hi! I'm your SmartShelf AI — I can help you with expiries, storage tips, recipes, reminders, and more."
+      text:
+        "Hi! I'm your SmartShelf AI — I can help you with expiries, storage tips, recipes, reminders, and more."
     }
   ]);
   const [sending, setSending] = useState(false);
@@ -19,7 +20,30 @@ export default function ChatBotAssistant() {
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages]);
 
-  // NEW SEND FUNCTION (matches new backend)
+  // small helper: safe JWT payload parser (no external deps)
+  function parseJwtSafe(token) {
+    if (!token || typeof token !== "string") return null;
+    try {
+      const parts = token.split(".");
+      if (parts.length < 2) return null;
+      const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      const decoded = atob(payload);
+      // decodeURIComponent trick to handle utf8
+      const json = decodeURIComponent(
+        decoded
+          .split("")
+          .map((c) => {
+            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join("")
+      );
+      return JSON.parse(json);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // NEW SEND FUNCTION (robust userId extraction + graceful fallback)
   const send = async (e) => {
     e?.preventDefault();
     const text = input.trim();
@@ -32,34 +56,66 @@ export default function ChatBotAssistant() {
     setSending(true);
 
     try {
-      // SAFELY get userId from localStorage
+      // 1) prefer explicit stored uid (set on login)
       let userId = null;
       try {
-        userId = typeof window !== 'undefined' && window.localStorage ? localStorage.getItem('uid') : null;
+        userId = localStorage.getItem("uid") || null;
       } catch (e) {
         userId = null;
       }
 
+      // 2) fallback: decode token stored in localStorage (if any)
       if (!userId) {
-        setMessages((m) => [...m, { from: "bot", text: "Please sign in to use SmartShelf AI." }]);
+        try {
+          const token = localStorage.getItem("token");
+          if (token) {
+            const payload = parseJwtSafe(token);
+            // common fields where id may live
+            userId = payload?.id || payload?.userId || payload?.sub || payload?._id || null;
+          }
+        } catch (e) {
+          userId = null;
+        }
+      }
+
+      // If still no userId: prompt sign-in (do not send broken request)
+      if (!userId) {
+        setMessages((m) => [
+          ...m,
+          { from: "bot", text: "Please sign in to use SmartShelf AI." }
+        ]);
         setSending(false);
         return;
       }
 
-      // --- CALL NEW CHAT ENDPOINT ---
-      const reply = await api.post("/chat", {
-        userId,
-        message: text
-      });
+      // Call backend chat endpoint - api attaches Authorization header already (if token exists)
+      const reply = await api.post("/chat", { userId, message: text });
 
-      // reply is plain TEXT (because of api.js)
-      setMessages((m) => [...m, { from: "bot", text: reply }]);
+      // reply might be plain text (api.js returns text for text/plain) or JSON object
+      if (typeof reply === "string") {
+        setMessages((m) => [...m, { from: "bot", text: reply }]);
+      } else if (reply && reply.summary) {
+        const parts = [reply.summary];
+        if (reply.details) parts.push(reply.details);
+        if (reply.items && reply.items.length) {
+          parts.push(
+            `Found ${reply.items.length} item(s): ` +
+              reply.items
+                .map((it) => `${it.name} (${it.expiryDate ? new Date(it.expiryDate).toLocaleDateString() : "—"})`)
+                .join(", ")
+          );
+        }
+        setMessages((m) => [...m, { from: "bot", text: parts.join("\n\n") }]);
+      } else {
+        setMessages((m) => [...m, { from: "bot", text: reply?.message || "Got it!" }]);
+      }
     } catch (err) {
       console.error("AI request failed:", err);
-      setMessages((m) => [
-        ...m,
-        { from: "bot", text: "Something went wrong — try again." }
-      ]);
+      const userFacing =
+        err?.response?.status === 401
+          ? "Please sign in to use SmartShelf AI."
+          : "Something went wrong — try again.";
+      setMessages((m) => [...m, { from: "bot", text: userFacing }]);
     } finally {
       setSending(false);
     }
@@ -67,31 +123,22 @@ export default function ChatBotAssistant() {
 
   return (
     <div className="flex flex-col gap-5 w-full">
-      {/* ✨ Title Section */}
+      {/* Title */}
       <div className="text-center">
-        <h2 className="text-2xl font-bold text-blue-500 animate-fade-in">
-          🤖 SmartShelf AI Assistant
-        </h2>
+        <h2 className="text-2xl font-bold text-blue-500 animate-fade-in">🤖 SmartShelf AI Assistant</h2>
         <p className="text-sm text-gray-400 mt-1 animate-fade-in-slow">
           Ask me anything about your items, recipes, storage, reminders, and more.
         </p>
       </div>
 
-      {/* 💬 Chat Box */}
+      {/* Chat Box */}
       <div
         ref={listRef}
         className="h-72 overflow-y-auto space-y-3 p-4 bg-white border border-gray-300 rounded-xl shadow-md transition-all duration-300 ease-in-out"
         aria-live="polite"
       >
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={
-              m.from === "you"
-                ? "ml-auto max-w-[80%]"
-                : "mr-auto max-w-[80%]"
-            }
-          >
+          <div key={i} className={m.from === "you" ? "ml-auto max-w-[80%]" : "mr-auto max-w-[80%]"}>
             <div
               className={`px-4 py-3 rounded-xl text-sm animate-slide-up ${
                 m.from === "you"
@@ -105,11 +152,11 @@ export default function ChatBotAssistant() {
         ))}
       </div>
 
-      {/* 📝 Input & Send */}
+      {/* Input & Send */}
       <form onSubmit={send} className="flex gap-3 items-center">
         <input
           className="flex-1 rounded-full border border-gray-300 px-4 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 animate-fade-in-slow"
-          placeholder="Ask me anything…"
+          placeholder="Ask me anything..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           aria-label="Ask assistant"
@@ -122,47 +169,14 @@ export default function ChatBotAssistant() {
         </button>
       </form>
 
-      {/* ✨ Animations */}
-      <style jsx>{`
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes fade-in-slow {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        @keyframes slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.5s ease-out forwards;
-        }
-        .animate-fade-in-slow {
-          animation: fade-in-slow 0.8s ease-out forwards;
-        }
-        .animate-slide-up {
-          animation: slide-up 0.4s ease-out forwards;
-        }
+      {/* Animations (no `jsx` attribute) */}
+      <style>{`
+        @keyframes fade-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fade-in-slow { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
+        .animate-fade-in-slow { animation: fade-in-slow 0.8s ease-out forwards; }
+        .animate-slide-up { animation: slide-up 0.4s ease-out forwards; }
       `}</style>
     </div>
   );

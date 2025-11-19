@@ -1,6 +1,7 @@
-import { useState } from "react";
-import ChatInput from "./ChatInput";
-import AIMessage from "./AIMessage";
+// src/components/ChatWindow.jsx
+import React, { useState } from 'react';
+import ChatInput from './ChatInput';
+import AIMessage from './AIMessage';
 
 export default function ChatWindow() {
   const [messages, setMessages] = useState([]);
