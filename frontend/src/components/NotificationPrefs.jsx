@@ -19,25 +19,47 @@ export default function NotificationPrefs() {
   const load = async () => {
     setLoading(true)
     setError('')
+    setInfo('')
     try {
-      const { data } = await api.get('/notifications/prefs')
+      // get raw response so we can inspect both response and response.data
+      const res = await api.get('/notifications/prefs')
+      console.debug('GET /notifications/prefs response:', res)
+
+      // support both axios style (res.data) and fetch wrappers that return body directly
+      const data = res?.data ?? res
+
+      // defensive: if server returned null/undefined, use defaults
       const next = {
-        emailEnabled: !!data.emailEnabled,
-        expiringSoon: !!data.expiringSoon,
-        expired: !!data.expired,
-        digestDaily: !!data.digestDaily,
-        digestWeekly: !!data.digestWeekly,
+        emailEnabled: !!(data?.emailEnabled ?? prefs.emailEnabled),
+        expiringSoon: !!(data?.expiringSoon ?? prefs.expiringSoon),
+        expired: !!(data?.expired ?? prefs.expired),
+        digestDaily: !!(data?.digestDaily ?? prefs.digestDaily),
+        digestWeekly: !!(data?.digestWeekly ?? prefs.digestWeekly),
       }
+
       setPrefs(next)
-      setInitial(next)
+      setInitial({ ...next })
     } catch (e) {
-      setError('Failed to load preferences')
+      // print full error for debugging
+      console.error('Failed to load prefs error:', e)
+      const msg =
+        // axios-style error body message
+        e?.response?.data?.message ||
+        // fetch-like error message
+        e?.message ||
+        'Failed to load preferences'
+      setError(msg)
+      // keep UI usable: ensure prefs stays a valid object and initial is set
+      setPrefs((p) => p)
+      setInitial((prev) => prev ?? { ...prefs })
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [])
 
   const toggle = (k) => {
     setInfo('')
@@ -55,11 +77,14 @@ export default function NotificationPrefs() {
     setError('')
     setInfo('')
     try {
-      await api.put('/notifications/prefs', prefs)
-      setInitial(prefs)
+      const res = await api.put('/notifications/prefs', prefs)
+      console.debug('PUT /notifications/prefs response:', res)
+      setInitial({ ...prefs })
       setInfo('Preferences saved')
-    } catch {
-      setError('Failed to save preferences')
+    } catch (e) {
+      console.error('Failed to save prefs error:', e)
+      const msg = e?.response?.data?.message || e?.message || 'Failed to save preferences'
+      setError(msg)
     } finally {
       setSaving(false)
     }
@@ -132,7 +157,16 @@ export default function NotificationPrefs() {
         </label>
       </div>
 
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {error && (
+          <button
+            className="rounded-lg bg-slate-700 text-white px-3 py-2 text-sm hover:bg-slate-600"
+            onClick={load}
+          >
+            Retry
+          </button>
+        )}
+
         <button
           className="rounded-lg bg-indigo-600 text-white px-4 py-2 text-sm font-medium hover:bg-indigo-500 transition-colors disabled:opacity-60"
           onClick={save}

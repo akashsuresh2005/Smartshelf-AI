@@ -78,6 +78,9 @@ export default function ChatBotAssistant() {
         }
       }
 
+      // Debug: show what userId we will send (non-invasive)
+      console.debug("[ChatBotAssistant] sending chat, userId:", userId);
+
       // If still no userId: prompt sign-in (do not send broken request)
       if (!userId) {
         setMessages((m) => [
@@ -90,6 +93,9 @@ export default function ChatBotAssistant() {
 
       // Call backend chat endpoint - api attaches Authorization header already (if token exists)
       const reply = await api.post("/chat", { userId, message: text });
+
+      // Debug: log raw reply for inspection
+      console.debug("[ChatBotAssistant] /chat reply:", reply);
 
       // reply might be plain text (api.js returns text for text/plain) or JSON object
       if (typeof reply === "string") {

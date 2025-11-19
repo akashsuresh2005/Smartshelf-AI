@@ -152,7 +152,6 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import fetch from 'node-fetch';
 
 import { connectDB } from './config/db.js';
 
@@ -178,13 +177,18 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
 
-/** --- Startup diagnostics --- */
+/** startup diagnostics */
 console.log('[BOOT] FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
-console.log('[BOOT] GEMINI_API_KEY present:', Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY));
 console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV || 'dev');
 
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
+
+/** request logger (light) */
+app.use((req, res, next) => {
+  console.log('[REQUEST]', req.method, req.originalUrl);
+  next();
+});
 
 /** CORS */
 const allowedOrigins = [
@@ -208,17 +212,15 @@ app.use(
 
 app.use(morgan('dev'));
 
-/** Static files */
+/** static files */
 const publicDir = path.resolve(process.cwd(), 'public');
 app.use(express.static(publicDir));
 app.use('/uploads', express.static(path.join(publicDir, 'uploads')));
 
-/** Health check */
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', env: process.env.NODE_ENV || 'dev' });
-});
+/** health */
+app.get('/api/health', (req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV || 'dev' }));
 
-/** ----------------- MAIN ROUTES ----------------- */
+/** main routes */
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -228,29 +230,25 @@ app.use('/api/push', pushRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/users', settingsRoutes);
 
-/** ----------------- AI ROUTES (SAFE) ----------------- */
-// DB Search route → POST /api/items/ai-search
-app.use('/api/items/ai-search', aiSearchRoute);
+/** AI routes: mounted under /api/items so router.post('/ai-search') -> /api/items/ai-search */
+app.use('/api/items', aiSearchRoute);
 
-// Chatbot route → POST /api/chat
+/** chatbot */
 app.use('/api/chat', chatbotRoute);
 
-/** ----------------- 404 ----------------- */
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
+/** 404 */
+app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
-/** ----------------- ERROR HANDLER ----------------- */
+/** error handler */
 app.use(errorHandler);
 
-/** ----------------- START SERVER ----------------- */
+/** start */
 const port = process.env.PORT || 5000;
-
 connectDB()
   .then(() => {
     initCronJobs();
     app.listen(port, () => {
-      console.log(`SmartShelf AI API running on http://localhost:${port}`);
+      console.log(`SmartShelf API running on http://localhost:${port}`);
     });
   })
   .catch((err) => {
