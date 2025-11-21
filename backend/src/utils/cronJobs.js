@@ -100,50 +100,54 @@
 //     console.log('[cron] Done.');
 //   }, { timezone: process.env.CRON_TZ || 'UTC' });
 // }
+// src/utils/cronJobs.js
 import cron from 'node-cron'
 import Item from '../models/Item.js'
 import { sendPushToUser } from '../utils/push.js'
 import { sendEmail } from './mailer.js'
 import Notification from '../models/Notification.js'
-import { markExpired } from '../controllers/itemController.js' // use controller function to mark expired
+import { markExpired } from '../controllers/itemController.js' // marks items as expired
 
 /**
  * initCronJobs()
- * - Uses CRON_SCHEDULE env var (optional)
- * - Default: run daily at 09:00 (server timezone) => '0 9 * * *'
- * - For testing set CRON_SCHEDULE='* * * * *' to run every minute.
- *
- * NOTE: This function also triggers one immediate run of markExpired() at startup
- * so items that are already past-due are fixed without waiting for the first tick.
+ * - Test schedule: runs daily at 12:39 (Asia/Kolkata timezone)
+ * - In production you may prefer '0 9 * * *' for 9:00 AM daily
+ * - Also runs markExpired() once immediately on server startup.
  */
 export function initCronJobs() {
-  const schedule = process.env.CRON_SCHEDULE || '0 9 * * *';
+  // SCHEDULE — runs at 12:39 PM daily (Asia/Kolkata)
+  const schedule = process.env.CRON_SCHEDULE || '18 13 * * *'
 
-  const tz = process.env.CRON_TZ || 'UTC'
+  // Set timezone to Asia/Kolkata (IST) by default, but allow override via CRON_TZ
+  const tz = process.env.CRON_TZ || 'Asia/Kolkata'
+
   console.log('[cron] starting expiry cron with schedule:', schedule, 'tz:', tz)
 
-  // Schedule the recurring job
+  // MAIN CRON SCHEDULE
   cron.schedule(
     schedule,
     async () => {
       console.log('[cron] CRON tick - start:', new Date().toISOString())
+
+      // STEP 1 — Mark items already expired
       try {
-        console.log('[cron] Running markExpired() to update past-due items to "expired"...')
-        const res = await markExpired() // programmatic call (no req/res)
-        // only log if something changed to avoid noise
-        const modifiedCount = (res && (res.modifiedCount ?? res.nModified)) ?? 0
+        console.log('[cron] Running markExpired()...')
+        const res = await markExpired()
+        const modifiedCount = (res?.modifiedCount ?? res?.nModified) ?? 0
+
         if (modifiedCount > 0) {
-          console.log('[cron] markExpired result:', modifiedCount)
+          console.log('[cron] markExpired updated items:', modifiedCount)
         } else {
-          console.debug && console.debug('[cron] markExpired ran, no items modified')
+          console.log('[cron] markExpired: no expired items')
         }
       } catch (err) {
         console.error('[cron] markExpired() failed:', err?.message || err)
       }
 
-      // existing notification logic (changed to be idempotent and mark notified after success)
+      // STEP 2 — Check for items expiring within 7 days
       try {
-        console.log('[cron] Checking expiring items (next 7 days)...')
+        console.log('[cron] Checking items expiring soon...')
+
         const now = new Date()
         const in7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
 
@@ -153,15 +157,16 @@ export function initCronJobs() {
           notified: { $ne: true }
         }).lean()
 
-        console.log('[cron] found', expiringItems.length, 'expiring items')
+        console.log('[cron] Found', expiringItems.length, 'expiring items')
 
+        // STEP 3 — For each expiring item: create Notification, send Push, send Email
         for (const item of expiringItems) {
           try {
             const userId = item.userId
             const title = `Expiry alert: ${item.name}`
             const body = `${item.name} expires on ${new Date(item.expiryDate).toLocaleDateString()}`
 
-            // idempotent creation: check first
+            // Idempotent notification creation
             const exists = await Notification.findOne({
               userId,
               itemId: item._id,
@@ -179,40 +184,45 @@ export function initCronJobs() {
                   type: 'push'
                 })
               } catch (e) {
-                // duplicate key error due to race — ignore
-                if (e && e.code === 11000) {
-                  console.warn('[cron] notification duplicate detected (ignored)', item._id)
-                } else {
-                  console.warn('[cron] warning notification save failed', e?.message || e)
+                // ignore duplicate key error or log others
+                if (e?.code !== 11000) {
+                  console.warn('[cron] notification save failed', e?.message || e)
                 }
               }
             } else {
               console.debug && console.debug('[cron] notification already exists; skipping create for', item._id)
             }
 
-            // Try to send push/email. Mark item.notified only after successful push send.
+            // Send push notification to the user
             let notifiedOk = false
             try {
               await sendPushToUser(userId, title, body)
               notifiedOk = true
+              console.log('[cron] push sent for', item._id)
             } catch (e) {
-              console.error('[cron] push send error for item', item._id, e && e.statusCode || e)
+              console.error('[cron] push send error for item', item._id, e?.statusCode || e)
               notifiedOk = false
             }
 
+            // Optionally send email if item.email present and push succeeded
             if (item.email && notifiedOk) {
               try {
                 await sendEmail(item.email, title, body)
+                console.log('[cron] email sent for', item._id)
               } catch (e) {
                 console.warn('[cron] email send warning', e?.message || e)
               }
             }
 
+            // Mark item as notified (only if push succeeded)
             if (notifiedOk) {
-              await Item.updateOne({ _id: item._id }, { $set: { notified: true, notifiedAt: new Date() } })
-              console.log('[cron] marked item notified', item._id)
+              await Item.updateOne(
+                { _id: item._id },
+                { $set: { notified: true, notifiedAt: new Date() } }
+              )
+              console.log('[cron] marked as notified:', item._id)
             } else {
-              console.log('[cron] did not mark item notified (send failed)', item._id)
+              console.log('[cron] NOT marking notified because push failed:', item._id)
             }
           } catch (inner) {
             console.error('[cron] error processing item', item._id, inner)
@@ -227,22 +237,23 @@ export function initCronJobs() {
     { timezone: tz }
   )
 
-  // Immediate one-off run at startup so already-past items update right away
+  // Immediate one-off run at server startup to fix already-past items
   ;(async () => {
     try {
-      console.log('[cron] Initial one-off markExpired() at startup:', new Date().toISOString())
+      console.log('[cron] Initial markExpired() at startup:', new Date().toISOString())
       const res = await markExpired()
-      const modifiedCount = (res && (res.modifiedCount ?? res.nModified)) ?? 0
+      const modifiedCount = (res?.modifiedCount ?? res?.nModified) ?? 0
+
       if (modifiedCount > 0) {
-        console.log('[cron] initial markExpired result:', modifiedCount)
+        console.log('[cron] initial markExpired updated items:', modifiedCount)
       } else {
-        console.debug && console.debug('[cron] initial markExpired ran, no items modified')
+        console.log('[cron] initial markExpired: no expired items')
       }
     } catch (err) {
-      console.error('[cron] initial markExpired() failed at startup:', err?.message || err)
+      console.error('[cron] initial markExpired() failed:', err?.message || err)
     }
   })()
 
-  console.log('[cron] Jobs scheduled: expiry/notify (schedule:', schedule, ' tz:', tz, ')')
+  console.log('[cron] Jobs scheduled for 12:39 PM daily (schedule:', schedule, ' tz:', tz, ')')
 }
 
