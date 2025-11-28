@@ -72,8 +72,6 @@
 // }
 // backend/src/utils/mailer.js
 // backend/src/utils/mailer.js
-// backend/src/utils/mailer.js
-// backend/src/utils/mailer.js
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -108,9 +106,38 @@ function ensureTransporter() {
 import Activity from '../models/Activity.js'
 import { makeActivityPayload } from './activityHelper.js'
 
-export async function sendEmail(to, subject, text) {
+/**
+ * sendEmail(to, subject, body, [textOverride])
+ *
+ * - If called with 3 args: sendEmail(to, subject, textBody)
+ *   -> treats the 3rd arg as plain text.
+ *
+ * - If called with 4 args: sendEmail(to, subject, htmlBody, textBody)
+ *   -> 3rd = HTML, 4th = plain text.
+ */
+export async function sendEmail(to, subject, body, textOverride) {
   const tx = ensureTransporter();
   if (!tx || !to) return; // fail silently if not configured
+
+  // Determine html/text from args
+  let html = undefined;
+  let text = undefined;
+
+  if (typeof textOverride !== 'undefined') {
+    // New style: (to, subject, htmlBody, textBody)
+    html = body;
+    text = textOverride;
+  } else {
+    // Old style: (to, subject, textBody)
+    // But if body looks like HTML, we’ll send both html + stripped text.
+    const maybeHtml = typeof body === 'string' && /<[a-z][\s\S]*>/i.test(body);
+    if (maybeHtml) {
+      html = body;
+      text = body.replace(/<[^>]+>/g, '');
+    } else {
+      text = body;
+    }
+  }
 
   try {
     const info = await tx.sendMail({
@@ -118,6 +145,7 @@ export async function sendEmail(to, subject, text) {
       to,
       subject,
       text,
+      html,
     });
 
     // Compose standardized activity payload and store (non-blocking)
@@ -129,6 +157,7 @@ export async function sendEmail(to, subject, text) {
           to: to,
           subject,
           text,
+          html: html ? '[html content present]' : null,
           info: info && info.messageId ? { messageId: info.messageId } : {}
         },
         userId: null,
@@ -149,3 +178,4 @@ export async function sendEmail(to, subject, text) {
     throw err;
   }
 }
+

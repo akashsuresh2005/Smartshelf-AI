@@ -100,13 +100,78 @@
 //     console.log('[cron] Done.');
 //   }, { timezone: process.env.CRON_TZ || 'UTC' });
 // }
-// src/utils/cronJobs.js
+// backend/src/utils/cronJobs.js
 import cron from 'node-cron'
 import Item from '../models/Item.js'
 import { sendPushToUser } from '../utils/push.js'
 import { sendEmail } from './mailer.js'
 import Notification from '../models/Notification.js'
 import { markExpired } from '../controllers/itemController.js' // marks items as expired
+
+/**
+ * Build a detailed email (subject, text, html) for an expiring item.
+ */
+function buildExpiryEmail(item) {
+  const now = new Date()
+  const expiry = new Date(item.expiryDate)
+  const diffDays = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24))
+
+  const subject = `SmartShelf – ${item.name} expires in ${diffDays} day(s)`
+
+  let suggestion
+  if (diffDays < 0) {
+    suggestion = 'This item is already expired. Please discard it safely.'
+  } else if (diffDays === 0) {
+    suggestion = 'Use this item today or discard it if it looks or smells unusual.'
+  } else if (diffDays <= 2) {
+    suggestion = 'Plan a meal in the next 1–2 days that uses this item so it does not go to waste.'
+  } else {
+    suggestion = 'Keep this item near the front of your shelf so you remember to use it soon.'
+  }
+
+  const textBody = `
+Your item "${item.name}" is expiring soon.
+
+Item details:
+- Name       : ${item.name}
+- Category   : ${item.category || 'N/A'}
+- Quantity   : ${item.quantity || 'N/A'}
+- Location   : ${item.location || 'N/A'}
+- Added on   : ${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'N/A'}
+- Expiry date: ${expiry.toLocaleDateString()}
+- Days left  : ${diffDays < 0 ? 'Already expired' : diffDays}
+
+Suggestion:
+${suggestion}
+
+This reminder was sent by SmartShelf so you can reduce food waste and save money.
+  `.trim()
+
+  const htmlBody = `
+    <h2>🕒 Item expiring soon</h2>
+    <p>Your item <strong>${item.name}</strong> is close to its expiry date.</p>
+
+    <h3>Item details</h3>
+    <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
+      <tr><td><strong>Name</strong></td><td>${item.name}</td></tr>
+      <tr><td><strong>Category</strong></td><td>${item.category || 'N/A'}</td></tr>
+      <tr><td><strong>Quantity</strong></td><td>${item.quantity || 'N/A'}</td></tr>
+      <tr><td><strong>Location</strong></td><td>${item.location || 'N/A'}</td></tr>
+      <tr><td><strong>Added on</strong></td><td>${item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'N/A'}</td></tr>
+      <tr><td><strong>Expiry date</strong></td><td>${expiry.toLocaleDateString()}</td></tr>
+      <tr><td><strong>Days left</strong></td><td>${diffDays < 0 ? 'Already expired' : diffDays}</td></tr>
+    </table>
+
+    <h3>Suggestion 💡</h3>
+    <p>${suggestion}</p>
+
+    <p style="margin-top:16px;font-size:12px;color:#666;">
+      — SmartShelf AI • Helping you track what’s in your shelf
+    </p>
+  `
+
+  return { subject, textBody, htmlBody }
+}
 
 /**
  * initCronJobs()
@@ -163,15 +228,16 @@ export function initCronJobs() {
         for (const item of expiringItems) {
           try {
             const userId = item.userId
-            const title = `Expiry alert: ${item.name}`
-            const body = `${item.name} expires on ${new Date(item.expiryDate).toLocaleDateString()}`
 
-            // Idempotent notification creation
+            // Build detailed email content
+            const { subject, textBody, htmlBody } = buildExpiryEmail(item)
+
+            // Idempotent notification creation (for push history)
             const exists = await Notification.findOne({
               userId,
               itemId: item._id,
               type: 'push',
-              title
+              title: subject
             }).lean()
 
             if (!exists) {
@@ -179,24 +245,26 @@ export function initCronJobs() {
                 await Notification.create({
                   userId,
                   itemId: item._id,
-                  title,
-                  message: body,
+                  title: subject,
+                  message: textBody,
                   type: 'push'
                 })
               } catch (e) {
-                // ignore duplicate key error or log others
                 if (e?.code !== 11000) {
                   console.warn('[cron] notification save failed', e?.message || e)
                 }
               }
-            } else {
-              console.debug && console.debug('[cron] notification already exists; skipping create for', item._id)
+            } else if (console.debug) {
+              console.debug('[cron] notification already exists; skipping create for', item._id)
             }
 
-            // Send push notification to the user
+            // Send push notification to the user (short version)
             let notifiedOk = false
             try {
-              await sendPushToUser(userId, title, body)
+              const shortBody = `${item.name} expires on ${new Date(
+                item.expiryDate
+              ).toLocaleDateString()}`
+              await sendPushToUser(userId, subject, shortBody)
               notifiedOk = true
               console.log('[cron] push sent for', item._id)
             } catch (e) {
@@ -204,17 +272,18 @@ export function initCronJobs() {
               notifiedOk = false
             }
 
-            // Optionally send email if item.email present and push succeeded
+            // Send rich email if email exists and push succeeded
             if (item.email && notifiedOk) {
               try {
-                await sendEmail(item.email, title, body)
+                // 4th arg = plain text version for clients that don't support HTML
+                await sendEmail(item.email, subject, htmlBody, textBody)
                 console.log('[cron] email sent for', item._id)
               } catch (e) {
                 console.warn('[cron] email send warning', e?.message || e)
               }
             }
 
-            // Mark item as notified (only if push succeeded)
+            // Mark item as notified (only if push succeeded to avoid spam)
             if (notifiedOk) {
               await Item.updateOne(
                 { _id: item._id },
@@ -254,6 +323,5 @@ export function initCronJobs() {
     }
   })()
 
-  console.log('[cron] Jobs scheduled for 12:39 PM daily (schedule:', schedule, ' tz:', tz, ')')
+  console.log('[cron] Jobs scheduled for 01:18 PM daily (schedule:', schedule, ' tz:', tz, ')')
 }
-
