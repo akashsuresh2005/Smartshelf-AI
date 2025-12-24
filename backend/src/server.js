@@ -171,6 +171,9 @@ import chatbotRoute from './routes/chatbot.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initCronJobs } from './utils/cronJobs.js';
 
+/* ===================== */
+/* ENV SETUP */
+/* ===================== */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '.env') });
@@ -180,11 +183,11 @@ const app = express();
 /* ===================== */
 /* BOOT LOGS */
 /* ===================== */
+console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV || 'development');
 console.log('[BOOT] FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
-console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV || 'dev');
 
 /* ===================== */
-/* MIDDLEWARE */
+/* BASIC MIDDLEWARE */
 /* ===================== */
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
@@ -195,33 +198,34 @@ app.use((req, res, next) => {
 });
 
 /* ===================== */
-/* ✅ CORS – FIXED */
+/* ✅ FINAL CORS CONFIG */
 /* ===================== */
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:5173',
-  'http://127.0.0.1:3000'
-].filter(Boolean);
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow server-to-server / Postman
+      if (!origin) return callback(null, true);
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    if (!origin) return callback(null, true); // Postman / curl
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-    return callback(new Error('Not allowed by CORS'));
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-};
+      // ✅ Allow ALL Vercel deployments + localhost
+      if (
+        origin.endsWith('.vercel.app') ||
+        origin === 'http://localhost:5173' ||
+        origin === 'http://localhost:3000'
+      ) {
+        return callback(null, true);
+      }
 
-app.use(cors(corsOptions));
+      console.error('[CORS BLOCKED]', origin);
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
 
-/* 🔥 REQUIRED FOR PREFLIGHT */
-app.options('*', cors(corsOptions));
+// 🔥 REQUIRED for browser preflight requests
+app.options('*', cors());
 
 app.use(morgan('dev'));
 
@@ -233,16 +237,22 @@ app.use(express.static(publicDir));
 app.use('/uploads', express.static(path.join(publicDir, 'uploads')));
 
 /* ===================== */
-/* ROUTES */
+/* HEALTH & ROOT */
 /* ===================== */
 app.get('/', (req, res) => {
   res.status(200).send('SmartShelf AI Backend is running 🚀');
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', env: process.env.NODE_ENV || 'dev' });
+  res.json({
+    status: 'ok',
+    env: process.env.NODE_ENV || 'development'
+  });
 });
 
+/* ===================== */
+/* API ROUTES */
+/* ===================== */
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -252,20 +262,24 @@ app.use('/api/push', pushRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/users', settingsRoutes);
 
+/* AI ROUTES */
 app.use('/api/items', aiSearchRoute);
 app.use('/api/chat', chatbotRoute);
 
 /* ===================== */
-/* ERROR HANDLING */
+/* 404 HANDLER */
 /* ===================== */
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
+/* ===================== */
+/* ERROR HANDLER */
+/* ===================== */
 app.use(errorHandler);
 
 /* ===================== */
-/* START SERVER */
+/* START SERVER (RAILWAY SAFE) */
 /* ===================== */
 const port = process.env.PORT || 5000;
 
@@ -273,13 +287,12 @@ connectDB()
   .then(() => {
     initCronJobs();
     app.listen(port, '0.0.0.0', () => {
-      console.log(`SmartShelf API running on port ${port}`);
+      console.log(`✅ SmartShelf API running on port ${port}`);
     });
   })
   .catch((err) => {
-    console.error('Failed to start server:', err?.message || err);
+    console.error('❌ Failed to start server:', err?.message || err);
     process.exit(1);
   });
 
 export default app;
-
