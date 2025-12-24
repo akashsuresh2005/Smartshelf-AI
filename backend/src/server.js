@@ -145,6 +145,7 @@
 
 // export default app;
 // server.js
+// server.js
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -217,8 +218,17 @@ const publicDir = path.resolve(process.cwd(), 'public');
 app.use(express.static(publicDir));
 app.use('/uploads', express.static(path.join(publicDir, 'uploads')));
 
+/* ===================== */
+/* ✅ REQUIRED FOR RAILWAY */
+/* ===================== */
+app.get('/', (req, res) => {
+  res.status(200).send('SmartShelf AI Backend is running 🚀');
+});
+
 /** health */
-app.get('/api/health', (req, res) => res.json({ status: 'ok', env: process.env.NODE_ENV || 'dev' }));
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', env: process.env.NODE_ENV || 'dev' });
+});
 
 /** main routes */
 app.use('/api/auth', authRoutes);
@@ -230,25 +240,30 @@ app.use('/api/push', pushRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/users', settingsRoutes);
 
-/** AI routes: mounted under /api/items so router.post('/ai-search') -> /api/items/ai-search */
+/** AI routes */
 app.use('/api/items', aiSearchRoute);
 
 /** chatbot */
 app.use('/api/chat', chatbotRoute);
 
 /** 404 */
-app.use((req, res) => res.status(404).json({ error: 'Not found' }));
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
 
 /** error handler */
 app.use(errorHandler);
 
-/** start */
+/** ===================== */
+/** START SERVER (Railway-safe) */
+/** ===================== */
 const port = process.env.PORT || 5000;
+
 connectDB()
   .then(() => {
     initCronJobs();
-    app.listen(port, () => {
-      console.log(`SmartShelf API running on http://localhost:${port}`);
+    app.listen(port, '0.0.0.0', () => {
+      console.log(`SmartShelf API running on port ${port}`);
     });
   })
   .catch((err) => {
@@ -257,5 +272,3 @@ connectDB()
   });
 
 export default app;
-
-
