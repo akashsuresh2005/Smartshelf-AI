@@ -181,28 +181,28 @@ const app = express();
 /* BOOT LOGS */
 /* ===================== */
 console.log('[BOOT] FRONTEND_URL:', process.env.FRONTEND_URL);
-console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV);
+console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV || 'development');
 
 /* ===================== */
 /* MIDDLEWARE */
 /* ===================== */
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
 /* ===================== */
-/* ✅ FINAL CORS FIX */
+/* ✅ CORS (Node 22 + Express SAFE) */
 /* ===================== */
-app.use(
-  cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  })
-);
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
-// REQUIRED for preflight
-app.options('*', cors());
+app.use(cors(corsOptions));
+
+/* ✅ SAFE preflight handler (NO wildcard string) */
+app.options(/.*/, cors(corsOptions));
 
 app.use(morgan('dev'));
 
@@ -214,7 +214,7 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.json({ status: 'ok', env: process.env.NODE_ENV });
 });
 
 app.use('/api/auth', authRoutes);
@@ -230,12 +230,15 @@ app.use('/api/items', aiSearchRoute);
 app.use('/api/chat', chatbotRoute);
 
 /* ===================== */
-/* ERROR HANDLING */
+/* 404 HANDLER */
 /* ===================== */
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
+/* ===================== */
+/* CENTRAL ERROR HANDLER */
+/* ===================== */
 app.use(errorHandler);
 
 /* ===================== */
@@ -247,13 +250,14 @@ connectDB()
   .then(() => {
     initCronJobs();
     app.listen(port, '0.0.0.0', () => {
-      console.log(`SmartShelf API running on port ${port}`);
+      console.log(`SmartShelf AI API running on http://localhost:${port}`);
     });
   })
   .catch((err) => {
-    console.error('Startup failed:', err);
+    console.error('Startup failed:', err?.message || err);
     process.exit(1);
   });
 
 export default app;
+
 
