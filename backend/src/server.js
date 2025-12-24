@@ -165,7 +165,6 @@ import pushRoutes from './routes/pushRoutes.js';
 import activityRoutes from './routes/activityRoutes.js';
 import settingsRoutes from './routes/settingsRoutes.js';
 
-/** NEW AI ROUTES */
 import aiSearchRoute from './routes/aiSearch.js';
 import chatbotRoute from './routes/chatbot.js';
 
@@ -178,59 +177,72 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
 
-/** startup diagnostics */
+/* ===================== */
+/* BOOT LOGS */
+/* ===================== */
 console.log('[BOOT] FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
 console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV || 'dev');
 
+/* ===================== */
+/* MIDDLEWARE */
+/* ===================== */
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 
-/** request logger (light) */
 app.use((req, res, next) => {
   console.log('[REQUEST]', req.method, req.originalUrl);
   next();
 });
 
-/** CORS */
+/* ===================== */
+/* ✅ CORS – FIXED */
+/* ===================== */
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000',
+  process.env.FRONTEND_URL,
   'http://localhost:5173',
-  'http://127.0.0.1:5173'
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000'
 ].filter(Boolean);
 
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      if (!origin) return cb(null, true);
-      if (allowedOrigins.includes(origin)) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'));
-    },
-    credentials: true
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // Postman / curl
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+
+/* 🔥 REQUIRED FOR PREFLIGHT */
+app.options('*', cors(corsOptions));
 
 app.use(morgan('dev'));
 
-/** static files */
+/* ===================== */
+/* STATIC FILES */
+/* ===================== */
 const publicDir = path.resolve(process.cwd(), 'public');
 app.use(express.static(publicDir));
 app.use('/uploads', express.static(path.join(publicDir, 'uploads')));
 
 /* ===================== */
-/* ✅ REQUIRED FOR RAILWAY */
+/* ROUTES */
 /* ===================== */
 app.get('/', (req, res) => {
   res.status(200).send('SmartShelf AI Backend is running 🚀');
 });
 
-/** health */
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', env: process.env.NODE_ENV || 'dev' });
 });
 
-/** main routes */
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -240,23 +252,21 @@ app.use('/api/push', pushRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/users', settingsRoutes);
 
-/** AI routes */
 app.use('/api/items', aiSearchRoute);
-
-/** chatbot */
 app.use('/api/chat', chatbotRoute);
 
-/** 404 */
+/* ===================== */
+/* ERROR HANDLING */
+/* ===================== */
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-/** error handler */
 app.use(errorHandler);
 
-/** ===================== */
-/** START SERVER (Railway-safe) */
-/** ===================== */
+/* ===================== */
+/* START SERVER */
+/* ===================== */
 const port = process.env.PORT || 5000;
 
 connectDB()
@@ -272,3 +282,4 @@ connectDB()
   });
 
 export default app;
+
