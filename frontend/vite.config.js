@@ -25,7 +25,6 @@
 
 // vite.config.js
 // vite.config.js
-// vite.config.js
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -36,6 +35,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+
+      // 🔴 IMPORTANT: Disable service worker for now
+      disable: true,
+
       includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png'],
       manifest: {
         name: 'Smart Shelf AI',
@@ -50,7 +53,7 @@ export default defineConfig({
     })
   ],
 
-  // Force single React/ReactDOM resolution (avoid duplicate-react invalid hook)
+  // ✅ Keep alias — does NOT affect routing
   resolve: {
     alias: {
       react: path.resolve(__dirname, 'node_modules/react'),
@@ -58,14 +61,14 @@ export default defineConfig({
     }
   },
 
-  // HMR / dev server config — explicit host/port for websocket handshake
-    server: {
+  // ✅ Keep dev server config — localhost unaffected
+  server: {
     host: true,
     strictPort: true,
     hmr: {
-      protocol: "ws",
-      host: "localhost",
-      port: 5173,
-    },
-  },
-});
+      protocol: 'ws',
+      host: 'localhost',
+      port: 5173
+    }
+  }
+})
