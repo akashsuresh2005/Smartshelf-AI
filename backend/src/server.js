@@ -145,7 +145,7 @@
 
 // export default app;
 // server.js
-// server.js
+// src/server.js
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -171,9 +171,6 @@ import chatbotRoute from './routes/chatbot.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initCronJobs } from './utils/cronJobs.js';
 
-/* ===================== */
-/* ENV SETUP */
-/* ===================== */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '.env') });
@@ -183,76 +180,43 @@ const app = express();
 /* ===================== */
 /* BOOT LOGS */
 /* ===================== */
-console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV || 'development');
-console.log('[BOOT] FRONTEND_URL:', process.env.FRONTEND_URL || '(not set)');
+console.log('[BOOT] FRONTEND_URL:', process.env.FRONTEND_URL);
+console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV);
 
 /* ===================== */
-/* BASIC MIDDLEWARE */
+/* MIDDLEWARE */
 /* ===================== */
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json());
 app.use(cookieParser());
 
-app.use((req, res, next) => {
-  console.log('[REQUEST]', req.method, req.originalUrl);
-  next();
-});
-
 /* ===================== */
-/* ✅ FINAL CORS CONFIG */
+/* ✅ FINAL CORS FIX */
 /* ===================== */
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow server-to-server / Postman
-      if (!origin) return callback(null, true);
-
-      // ✅ Allow ALL Vercel deployments + localhost
-      if (
-        origin.endsWith('.vercel.app') ||
-        origin === 'http://localhost:5173' ||
-        origin === 'http://localhost:3000'
-      ) {
-        return callback(null, true);
-      }
-
-      console.error('[CORS BLOCKED]', origin);
-      return callback(new Error('Not allowed by CORS'));
-    },
+    origin: process.env.FRONTEND_URL,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
-// 🔥 REQUIRED for browser preflight requests
+// REQUIRED for preflight
 app.options('*', cors());
 
 app.use(morgan('dev'));
 
 /* ===================== */
-/* STATIC FILES */
-/* ===================== */
-const publicDir = path.resolve(process.cwd(), 'public');
-app.use(express.static(publicDir));
-app.use('/uploads', express.static(path.join(publicDir, 'uploads')));
-
-/* ===================== */
-/* HEALTH & ROOT */
+/* ROUTES */
 /* ===================== */
 app.get('/', (req, res) => {
-  res.status(200).send('SmartShelf AI Backend is running 🚀');
+  res.send('SmartShelf AI Backend Running 🚀');
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    env: process.env.NODE_ENV || 'development'
-  });
+  res.json({ status: 'ok' });
 });
 
-/* ===================== */
-/* API ROUTES */
-/* ===================== */
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
 app.use('/api/analytics', analyticsRoutes);
@@ -262,37 +226,34 @@ app.use('/api/push', pushRoutes);
 app.use('/api/activity', activityRoutes);
 app.use('/api/users', settingsRoutes);
 
-/* AI ROUTES */
 app.use('/api/items', aiSearchRoute);
 app.use('/api/chat', chatbotRoute);
 
 /* ===================== */
-/* 404 HANDLER */
+/* ERROR HANDLING */
 /* ===================== */
 app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-/* ===================== */
-/* ERROR HANDLER */
-/* ===================== */
 app.use(errorHandler);
 
 /* ===================== */
-/* START SERVER (RAILWAY SAFE) */
+/* START SERVER */
 /* ===================== */
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8080;
 
 connectDB()
   .then(() => {
     initCronJobs();
     app.listen(port, '0.0.0.0', () => {
-      console.log(`✅ SmartShelf API running on port ${port}`);
+      console.log(`SmartShelf API running on port ${port}`);
     });
   })
   .catch((err) => {
-    console.error('❌ Failed to start server:', err?.message || err);
+    console.error('Startup failed:', err);
     process.exit(1);
   });
 
 export default app;
+
