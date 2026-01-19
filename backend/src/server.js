@@ -145,7 +145,7 @@
 
 // export default app;
 // server.js
-// src/server.js
+// backend/src/server.js
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -171,6 +171,9 @@ import chatbotRoute from './routes/chatbot.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { initCronJobs } from './utils/cronJobs.js';
 
+/* ===================== */
+/* ENV SETUP */
+/* ===================== */
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '.env') });
@@ -188,23 +191,32 @@ console.log('[BOOT] NODE_ENV:', process.env.NODE_ENV || 'development');
 /* ===================== */
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
-
-/* ===================== */
-/* ✅ CORS (Node 22 + Express SAFE) */
-/* ===================== */
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-};
-
-app.use(cors(corsOptions));
-
-/* ✅ SAFE preflight handler (NO wildcard string) */
-app.options(/.*/, cors(corsOptions));
-
 app.use(morgan('dev'));
+
+/* ===================== */
+/* ✅ CORS CONFIG (NODE 22 SAFE) */
+/* ===================== */
+const allowedOrigins = [
+  'http://localhost:3001',
+  'http://127.0.0.1:3001',
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // Postman / server-to-server
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
 
 /* ===================== */
 /* ROUTES */
@@ -214,8 +226,49 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', env: process.env.NODE_ENV });
+  res.json({ status: 'ok', env: process.env.NODE_ENV || 'development' });
 });
+
+
+
+
+
+
+
+
+
+app.get("/api/test-email", async (req, res) => {
+  try {
+    const transporter = (await import("./utils/mailer.js")).default;
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_USER,
+      subject: "SmartShelf Email Test",
+      text: "If you see this, Gmail App Password is working."
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[EMAIL TEST ERROR]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/items', itemRoutes);
@@ -244,7 +297,7 @@ app.use(errorHandler);
 /* ===================== */
 /* START SERVER */
 /* ===================== */
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 5000;
 
 connectDB()
   .then(() => {
@@ -259,5 +312,3 @@ connectDB()
   });
 
 export default app;
-
-

@@ -36,7 +36,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
 
-      // 🔴 IMPORTANT: Disable service worker for now
+      // Disable PWA during dev (good decision)
       disable: true,
 
       includeAssets: ['favicon.ico', 'robots.txt', 'icons/*.png'],
@@ -53,7 +53,6 @@ export default defineConfig({
     })
   ],
 
-  // ✅ Keep alias — does NOT affect routing
   resolve: {
     alias: {
       react: path.resolve(__dirname, 'node_modules/react'),
@@ -61,14 +60,11 @@ export default defineConfig({
     }
   },
 
-  // ✅ Keep dev server config — localhost unaffected
+  // ✅ SAFE DEV SERVER CONFIG
   server: {
-    host: true,
-    strictPort: true,
-    hmr: {
-      protocol: 'ws',
-      host: 'localhost',
-      port: 5173
-    }
+    port: 3001,       // 🔥 change port
+    strictPort: true
+    // ❌ NO custom hmr block
   }
 })
+
