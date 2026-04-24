@@ -133,36 +133,36 @@ export default function ActivityItem({ activity }) {
   const badgeColor = derived.badge
 
   return (
-    <div className="group flex items-start gap-4 bg-slate-800/60 rounded-lg p-4 border border-slate-700/40 hover:bg-slate-700/60 hover:border-slate-600/50 transition-all duration-200">
-      <div className={`flex-none w-14 h-14 rounded-lg flex items-center justify-center border ${badgeColor} transition-transform duration-200 group-hover:scale-105`}>
+    <div className="group flex items-start gap-3 sm:gap-4 bg-slate-800/60 rounded-lg p-3 sm:p-4 border border-slate-700/40 hover:bg-slate-700/60 hover:border-slate-600/50 transition-all duration-200">
+      <div className={`flex-none w-11 h-11 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center border ${badgeColor} transition-transform duration-200 group-hover:scale-105 flex-shrink-0`}>
         {derived.icon}
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-2 sm:gap-3">
           <div className="flex-1 min-w-0">
-            <div className="text-base">
+            <div className="text-sm sm:text-base">
               <span className="font-semibold text-slate-200">{userName || 'System'}</span>
               <span className="text-slate-400"> — {derived.v}</span>
               {derived.name && <span className="text-slate-300"> — {derived.name}</span>}
             </div>
-            <div className="mt-1.5 text-sm text-slate-500">
+            <div className="mt-1 sm:mt-1.5 text-xs sm:text-sm text-slate-500 break-words">
               {derived.b}
               {derived.expiryIso && <span className="text-amber-400"> · Expires {fmtDate(derived.expiryIso)}</span>}
             </div>
           </div>
-          <div className="flex-none text-sm text-slate-500 font-medium">{timeAgo(createdAt)}</div>
+          <div className="flex-none text-xs sm:text-sm text-slate-500 font-medium whitespace-nowrap">{timeAgo(createdAt)}</div>
         </div>
 
         {(details && Object.keys(details).length > 0) && (
-          <div className="mt-3 text-sm text-slate-400 bg-slate-900/40 border border-slate-700/40 p-3 rounded">
+          <div className="mt-2 sm:mt-3 text-sm text-slate-400 bg-slate-900/40 border border-slate-700/40 p-2 sm:p-3 rounded">
             <button
               onClick={() => setOpen(o => !o)}
-              className="text-sm font-medium text-cyan-400 hover:text-cyan-300 underline mr-2 transition-colors"
+              className="text-xs sm:text-sm font-medium text-cyan-400 hover:text-cyan-300 underline mr-2 transition-colors"
             >
               {open ? 'Hide details' : 'Show details'}
             </button>
-            {open && <pre className="whitespace-pre-wrap mt-2 text-slate-400 text-xs">{JSON.stringify(details, null, 2)}</pre>}
+            {open && <pre className="whitespace-pre-wrap mt-2 text-slate-400 text-xs overflow-x-auto">{JSON.stringify(details, null, 2)}</pre>}
           </div>
         )}
       </div>

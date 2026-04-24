@@ -1,7 +1,3 @@
-
-
-
-
 import { Router } from 'express';
 import {
   list,
@@ -12,8 +8,10 @@ import {
   stats,
   getPrefs,
   updatePrefs,
-  sendTest
+  sendTest,
+  sendWhatsAppAlert
 } from '../controllers/notificationController.js';
+
 import { requireAuth } from '../middleware/authMiddleware.js';
 import Notification from '../models/Notification.js';
 import { addSubscription } from '../utils/push.js';
@@ -23,7 +21,7 @@ const router = Router();
 /** Save a browser push subscription (in-memory for now) */
 router.post('/subscribe', requireAuth, (req, res) => {
   try {
-    addSubscription(req.body); // raw PushSubscription JSON
+   addSubscription(req.body, req.user.id); // raw PushSubscription JSON
     res.json({ ok: true });
   } catch (e) {
     res.status(400).json({ error: 'Invalid subscription' });
@@ -40,7 +38,10 @@ router.post('/mark-read', requireAuth, markRead);
 /** Added: unread count for the bell */
 router.get('/unread-count', requireAuth, async (req, res, next) => {
   try {
-    const count = await Notification.countDocuments({ userId: req.user.id, read: false });
+    const count = await Notification.countDocuments({
+      userId: req.user.id,
+      read: false
+    });
     res.json({ count });
   } catch (err) {
     next(err);
@@ -62,5 +63,8 @@ router.put('/prefs', requireAuth, updatePrefs);
 
 /** Optional */
 router.post('/send-test', requireAuth, sendTest);
+
+/** WhatsApp Alert */
+router.post('/whatsapp', requireAuth, sendWhatsAppAlert);
 
 export default router;

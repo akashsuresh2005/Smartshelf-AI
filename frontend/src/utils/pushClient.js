@@ -50,6 +50,7 @@
 // Call ensureSubscribed() from a user gesture or app init (recommended on user click)
 // src/utils/pushClient.js
 import api from './api.js'; // your axios/fetch wrapper that includes auth token header
+
 const PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY; // must match server's WEB_PUSH_PUBLIC_VAPID_KEY
 
 function urlBase64ToUint8Array(base64String) {
@@ -105,9 +106,9 @@ export async function ensureSubscribed() {
     console.log('[pushClient] Existing subscription found');
   }
 
-  // POST to server route used by backend
+  // ✅ FIXED: Correct backend route
   try {
-    await api.post('/api/push/subscribe', sub.toJSON()); // note the /api/push path
+    await api.post('/api/notifications/subscribe', sub.toJSON());
     console.log('[pushClient] Subscription POSTed to server');
   } catch (err) {
     console.error('[pushClient] Failed to POST subscription to server', err);

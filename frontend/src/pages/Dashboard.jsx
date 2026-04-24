@@ -1,4 +1,3 @@
-
 /// src/pages/Dashboard.jsx
 // src/pages/Dashboard.jsx
 import { useEffect, useState } from 'react'
@@ -112,15 +111,15 @@ export default function Dashboard() {
   const stockEst = stockValueEstimation(items)
 
   return (
-    <div className="bg-slate-950 min-h-screen p-6">
+    <div className="bg-slate-950 min-h-screen p-3 sm:p-4 md:p-6">
       
       {/* HEADER */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4">
         <motion.h1
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="text-3xl font-semibold text-cyan-400"
+          className="text-2xl sm:text-3xl font-semibold text-cyan-400"
         >
           Dashboard
         </motion.h1>
@@ -130,13 +129,13 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.42 }}
-          className="mt-2 rounded-lg px-4 py-3 bg-slate-900/40 border border-slate-800/40 max-w-2xl"
+          className="mt-2 rounded-lg px-3 sm:px-4 py-2.5 sm:py-3 bg-slate-900/40 border border-slate-800/40 max-w-2xl"
         >
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4">
 
             {/* Welcome Back (blink) */}
             <motion.span
-              className="text-base text-slate-100 font-medium"
+              className="text-sm sm:text-base text-slate-100 font-medium"
               animate={{ opacity: [1, 0.4, 1] }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
             >
@@ -154,11 +153,11 @@ export default function Dashboard() {
 
             {/* Freshness line (blink) */}
             <motion.span
-              className="text-sm text-slate-400"
+              className="text-xs sm:text-sm text-slate-400 w-full sm:w-auto"
               animate={{ opacity: [1, 0.4, 1] }}
               transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
             >
-              • Freshness tracking active · Auto reminders & insights enabled
+              • Freshness tracking active · Auto reminders &amp; insights enabled
             </motion.span>
 
           </div>
@@ -166,7 +165,7 @@ export default function Dashboard() {
       </div>
 
       {/* FILTERS */}
-      <div className="bg-slate-900/60 rounded-lg p-5 mb-4 border border-slate-800/50">
+      <div className="bg-slate-900/60 rounded-lg p-3 sm:p-5 mb-3 sm:mb-4 border border-slate-800/50">
         <ItemFilters
           onData={(data) => {
             const normalized = (data && typeof data === 'object') ? (data.items ?? data) : data
@@ -178,46 +177,46 @@ export default function Dashboard() {
       </div>
 
       {/* SUMMARY + ITEMS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 sm:gap-6">
 
         {/* SUMMARY */}
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18 }}
-          className="bg-slate-900/60 rounded-lg p-6 border border-slate-800/50 md:col-span-1"
+          className="bg-slate-900/60 rounded-lg p-4 sm:p-6 border border-slate-800/50 md:col-span-1"
         >
-          <h2 className="text-xl font-semibold text-slate-300 mb-4">Summary</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-slate-300 mb-3 sm:mb-4">Summary</h2>
 
-          <div className="grid grid-cols-1 gap-4">
-            <div className="p-4 rounded-lg bg-slate-800/60">
-              <p className="text-slate-400">Total items</p>
-              <p className="text-2xl font-semibold text-slate-200">{items.length}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-1 gap-3 sm:gap-4">
+            <div className="p-3 sm:p-4 rounded-lg bg-slate-800/60">
+              <p className="text-slate-400 text-sm sm:text-base">Total items</p>
+              <p className="text-xl sm:text-2xl font-semibold text-slate-200">{items.length}</p>
             </div>
 
-            <div className="p-4 rounded-lg bg-slate-800/60">
-              <p className="text-slate-400">Money saved</p>
-              <p className="text-2xl font-semibold text-green-400">{currencyFormatter.format(savings)}</p>
+            <div className="p-3 sm:p-4 rounded-lg bg-slate-800/60">
+              <p className="text-slate-400 text-sm sm:text-base">Money saved</p>
+              <p className="text-xl sm:text-2xl font-semibold text-green-400">{currencyFormatter.format(savings)}</p>
             </div>
 
-            <div className="p-4 rounded-lg bg-slate-800/60">
-              <p className="text-slate-400">Badges</p>
-              <p className="text-2xl font-semibold text-pink-400">{badges.length}</p>
+            <div className="p-3 sm:p-4 rounded-lg bg-slate-800/60">
+              <p className="text-slate-400 text-sm sm:text-base">Badges</p>
+              <p className="text-xl sm:text-2xl font-semibold text-pink-400">{badges.length}</p>
             </div>
 
-            <div className="p-4 rounded-lg bg-slate-800/60">
-              <p className="text-slate-400">Reminders</p>
-              <p className="text-2xl font-semibold text-yellow-400">{reminders.length}</p>
+            <div className="p-3 sm:p-4 rounded-lg bg-slate-800/60">
+              <p className="text-slate-400 text-sm sm:text-base">Reminders</p>
+              <p className="text-xl sm:text-2xl font-semibold text-yellow-400">{reminders.length}</p>
             </div>
 
-            <div className="p-4 rounded-lg bg-slate-800/60">
-              <p className="text-slate-400">Most used storage location</p>
-              <p className="text-2xl font-semibold text-slate-200">{topLocation || "—"}</p>
+            <div className="p-3 sm:p-4 rounded-lg bg-slate-800/60">
+              <p className="text-slate-400 text-sm sm:text-base">Most used storage location</p>
+              <p className="text-xl sm:text-2xl font-semibold text-slate-200">{topLocation || "—"}</p>
             </div>
 
-            <div className="p-4 rounded-lg bg-slate-800/60">
-              <p className="text-slate-400">Stock value estimation</p>
-              <p className="text-2xl font-semibold text-emerald-400">{currencyFormatter.format(stockEst)}</p>
+            <div className="p-3 sm:p-4 rounded-lg bg-slate-800/60">
+              <p className="text-slate-400 text-sm sm:text-base">Stock value estimation</p>
+              <p className="text-xl sm:text-2xl font-semibold text-emerald-400">{currencyFormatter.format(stockEst)}</p>
             </div>
           </div>
         </motion.div>
@@ -227,9 +226,9 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.18 }}
-          className="bg-slate-900/60 rounded-lg p-5 border border-slate-800/50 md:col-span-3"
+          className="bg-slate-900/60 rounded-lg p-3 sm:p-5 border border-slate-800/50 md:col-span-3"
         >
-          <h2 className="text-lg font-medium text-slate-300 mb-3">Items</h2>
+          <h2 className="text-base sm:text-lg font-medium text-slate-300 mb-2 sm:mb-3">Items</h2>
 
           {loadingItems ? (
             <p className="text-slate-500 py-6">Loading...</p>
@@ -269,9 +268,9 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.18 }}
-        className="bg-slate-900/60 rounded-lg p-5 border border-slate-800/50 mt-6"
+        className="bg-slate-900/60 rounded-lg p-3 sm:p-5 border border-slate-800/50 mt-4 sm:mt-6"
       >
-        <h2 className="text-lg font-medium text-slate-300 mb-3">Upcoming reminders</h2>
+        <h2 className="text-base sm:text-lg font-medium text-slate-300 mb-2 sm:mb-3">Upcoming reminders</h2>
         {loadingReminders ? (
           <p className="text-slate-500 py-6">Loading...</p>
         ) : reminders.length ? (
@@ -305,4 +304,3 @@ export default function Dashboard() {
     </div>
   )
 }
-

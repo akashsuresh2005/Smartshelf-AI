@@ -142,26 +142,23 @@
 
 
 
-// src/utils/api.js
 import axios from 'axios';
 
 /**
  * IMPORTANT:
- * - In production → VITE_API_BASE_URL must be:
- *   https://smartshelf-ai-production.up.railway.app/api
- *
- * - In local dev fallback → http://localhost:8080/api
+ * - We are using your Local IP (10.177.96.148) so your phone 
+ * can connect to your computer over Wi-Fi via ngrok.
  */
 const ROOT =
   import.meta.env.VITE_API_BASE_URL ||
-  'http://localhost:8080/api';
+  'http://10.177.96.148:5000/api'; // ✅ Updated to your Wi-Fi IP and Port 5000
 
 // ------------------------------------------------------------
 // Axios instance
 // ------------------------------------------------------------
 const api = axios.create({
   baseURL: ROOT,
-  withCredentials: true, // REQUIRED for CORS + cookies
+  withCredentials: true, 
   timeout: 20000
 });
 
@@ -172,7 +169,6 @@ const api = axios.create({
 function normalizePath(baseURL, url) {
   if (!url || typeof url !== 'string') return url;
 
-  // Allow absolute URLs
   if (/^https?:\/\//i.test(url)) return url;
 
   let u = url.replace(/^\/+/, '/');
@@ -226,12 +222,9 @@ api.interceptors.request.use((cfg) => {
 api.interceptors.response.use(
   (res) => {
     const contentType = res.headers['content-type'];
-
-    // chatbot text responses
     if (contentType && contentType.includes('text/plain')) {
       return res.data;
     }
-
     return res.data;
   },
   (err) => {

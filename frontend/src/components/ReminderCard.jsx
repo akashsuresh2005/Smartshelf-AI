@@ -1,33 +1,3 @@
-// // src/components/ReminderCard.jsx
-// export default function ReminderCard({ reminder }) {
-//   const dateStr = reminder?.date ? new Date(reminder.date).toLocaleString() : '—'
-
-//   // Optional urgency styling based on time difference
-//   const now = Date.now()
-//   const due = reminder?.date ? new Date(reminder.date).getTime() : null
-//   const diff = due ? due - now : null
-//   const urgencyCls =
-//     diff == null
-//       ? 'bg-slate-800/60 text-slate-300 border border-slate-700/50'
-//       : diff < 0
-//       ? 'bg-red-900/30 text-red-300 border border-red-800/50'
-//       : diff <= 24 * 60 * 60 * 1000
-//       ? 'bg-yellow-900/30 text-yellow-300 border border-yellow-800/50'
-//       : 'bg-blue-900/30 text-blue-300 border border-blue-800/50'
-
-//   return (
-//     <div className="bg-slate-900/60 rounded-lg border border-slate-800/50 p-4 flex items-center justify-between gap-4">
-//       <div className="min-w-0">
-//         <p className="font-semibold text-slate-200 truncate">{reminder.title}</p>
-//         <p className="text-sm text-slate-500 mt-0.5">{dateStr}</p>
-//       </div>
-//       <span className={`text-xs px-3 py-1 rounded-full whitespace-nowrap ${urgencyCls}`}>
-//         Reminder
-//       </span>
-//     </div>
-//   )
-// }
-// frontend/src/components/ReminderCard.jsx
 // src/components/ReminderCard.jsx
 export default function ReminderCard({ reminder }) {
   // reminder may be either:
@@ -63,23 +33,24 @@ export default function ReminderCard({ reminder }) {
     'border border-blue-600 text-blue-300'
 
   return (
-    <div className="bg-slate-900/60 rounded-lg border border-slate-800/50 p-4 flex items-center justify-between gap-4">
-      <div className="min-w-0">
-        <div className="flex items-center gap-3">
-          <div className={`text-xs font-medium px-2.5 py-1 rounded ${badge}`}>{category?.charAt(0)?.toUpperCase() + category?.slice(1)}</div>
-          <p className="font-semibold text-slate-200 truncate">{title}</p>
+    <div className="bg-slate-900/60 rounded-lg border border-slate-800/50 p-3 sm:p-4 flex items-center justify-between gap-2 sm:gap-4">
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          <div className={`text-xs font-medium px-2 sm:px-2.5 py-0.5 sm:py-1 rounded flex-shrink-0 ${badge}`}>
+            {category?.charAt(0)?.toUpperCase() + category?.slice(1)}
+          </div>
+          <p className="font-semibold text-slate-200 truncate text-sm sm:text-base">{title}</p>
         </div>
-        <p className="text-sm text-slate-400 mt-2 flex items-center gap-2">
-          <span className="inline-block w-1 h-1 rounded-full bg-slate-500" />
+        <p className="text-xs sm:text-sm text-slate-400 mt-1.5 sm:mt-2 flex items-center gap-2">
+          <span className="inline-block w-1 h-1 rounded-full bg-slate-500 flex-shrink-0" />
           {dateStr}
         </p>
       </div>
-      <div>
-        <button className={`rounded-full px-4 py-1.5 text-sm ${buttonCls} bg-transparent`} aria-label="Reminder button">
+      <div className="flex-shrink-0">
+        <button className={`rounded-full px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm ${buttonCls} bg-transparent whitespace-nowrap`} aria-label="Reminder button">
           Reminder
         </button>
       </div>
     </div>
   )
 }
-

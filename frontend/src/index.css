@@ -1,83 +1,88 @@
-/* @tailwind base;
-@tailwind components;
-@tailwind utilities; */
-
-/* Global styles */
-/* html, body, #root {
-  height: 100%;
-} */
-
-/* Define custom layer for the card */
-/* @layer components {
-  .card {
-    @apply bg-white shadow-soft rounded-xl border border-gray-100;
-  }
-} */
-/* optional extra */
-/* :root {
-  --accent-500: #3b82f6; /* tweak as needed */
-/* } */ 
-
-/* subtle card shadow if needed */
-/* .shadow-soft { box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06); } */
-
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Global sizing */
-html, body, #root { height: 100%; }
-
-/* Design tokens */
-:root {
-  --accent-500: #6366f1; /* indigo-500 tuned */
+/* 🔥 GLOBAL BASE */
+html, body, #root {
+  height: 100%;
+  @apply bg-slate-950 text-slate-100;
+  font-size: 16px;
 }
 
-/* Card component */
+/* 🔥 DESIGN TOKENS */
+:root {
+  --accent: #6366f1;
+}
+
+/* 🔥 COMPONENT SYSTEM */
 @layer components {
+
+  /* CARD */
   .card {
-    @apply bg-white rounded-2xl border border-gray-100 shadow-soft;
+    @apply bg-slate-900 border border-slate-800 rounded-xl shadow-soft p-4 sm:p-6;
+  }
+
+  /* INPUT */
+  .input {
+    @apply w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white 
+           placeholder:text-slate-500 focus:ring-2 focus:ring-indigo-500 transition;
+  }
+
+  /* BUTTONS */
+  .btn-primary {
+    @apply bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition w-full sm:w-auto;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg transition w-full sm:w-auto;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg transition w-full sm:w-auto;
+  }
+
+  /* BADGE */
+  .badge {
+    @apply text-xs px-2 py-1 rounded-md;
   }
 }
 
-/* Soft shadow utility */
-.shadow-soft { box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06); }
-
-/* Nice focus */
-:focus { outline: none; box-shadow: 0 0 0 4px rgba(99,102,241,0.12); }
-
-/* src/index.css  — append these rules near your other tailwind/custom rules */
-
-/* Activity card tweaks */
-.activity-list-item pre {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #374151; /* gray-700 */
-  background: rgba(243,244,246,0.9); /* gray-50 */
-  border-radius: 8px;
-  padding: 10px;
-  overflow: auto;
+/* 🔥 SCROLLBAR */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
-/* improve pre line wrapping on small screens */
+/* 🔥 FOCUS FIX */
+:focus {
+  outline: none;
+}
+
+/* 🔥 ACTIVITY FIX */
 .activity-list-item pre {
+  @apply text-xs bg-slate-800 text-slate-300 rounded-lg p-2 overflow-auto;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-/* Slightly larger emoji container on small screens */
-@media (min-width: 640px) {
-  .activity-list-item .emoji {
-    font-size: 20px;
-  }
+/* 🔥 SHADOW */
+.shadow-soft {
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 
-/* Soft special shadow for each item */
-.activity-card-shadow {
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
-}
-.card {
-  @apply bg-white rounded-xl shadow-md border border-gray-100;
+/* 🔥 RESPONSIVE UTILITIES */
+@layer utilities {
+  .container-responsive {
+    @apply max-w-full sm:max-w-3xl lg:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .text-responsive {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
 }

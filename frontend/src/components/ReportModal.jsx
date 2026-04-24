@@ -36,18 +36,18 @@ export default function ReportModal({ open, onClose, activities = [] }) {
   const chipActive = 'ring-1 ring-cyan-500/50 bg-slate-700/60'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <button
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
         aria-label="Close report modal"
       />
-      <div className="relative w-full max-w-md bg-slate-900/70 border border-slate-800/50 rounded-xl shadow-xl p-5">
+      <div className="relative w-full max-w-md bg-slate-900/70 border border-slate-800/50 rounded-xl shadow-xl p-4 sm:p-5 max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between mb-3">
-          <h3 className="text-xl font-semibold text-cyan-400">Generate Activity Report</h3>
+          <h3 className="text-lg sm:text-xl font-semibold text-cyan-400">Generate Activity Report</h3>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-200"
+            className="text-slate-400 hover:text-slate-200 p-1 flex-shrink-0"
             aria-label="Close"
           >
             ✕
@@ -110,7 +110,7 @@ export default function ReportModal({ open, onClose, activities = [] }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 mt-5">
+        <div className="flex flex-wrap items-center justify-end gap-2 mt-4 sm:mt-5">
           <button
             className={`${btnBase} border border-slate-700/50 bg-slate-800/60 text-slate-200 hover:bg-slate-700/60`}
             onClick={onClose}

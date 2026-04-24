@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react'
 import api from '../utils/api.js'
 
@@ -55,14 +54,13 @@ export default function NotificationBell() {
   if (loading) return <div className="bell">…</div>
 
   return (
-    <div className="relative" aria-live="polite">
-      <span className="text-2xl">🔔</span>
+    <div className="relative inline-flex" aria-live="polite">
+      <span className="text-xl sm:text-2xl">🔔</span>
       {unread > 0 && (
-        <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs px-2 py-0.5 rounded-full">
-          {unread}
+        <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs min-w-[18px] h-[18px] flex items-center justify-center px-1 rounded-full leading-none">
+          {unread > 99 ? '99+' : unread}
         </span>
       )}
     </div>
   )
 }
-

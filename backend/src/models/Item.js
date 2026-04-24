@@ -27,7 +27,8 @@ const itemSchema = new mongoose.Schema(
     },
     notes: { type: String, maxlength: 500 },
 
-    dosage: { type: String },
+    // ✅ WhatsApp number for expiry alerts
+    whatsappNumber: { type: String },
 
     expiryDate: { type: Date, required: true },
     purchaseDate: { type: Date },
@@ -41,7 +42,6 @@ const itemSchema = new mongoose.Schema(
       default: 'active'
     },
 
-    // NEW: notified flag & timestamp to avoid duplicate notifications
     notified: { type: Boolean, default: false },
     notifiedAt: { type: Date, default: null },
 
@@ -50,43 +50,5 @@ const itemSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
-// helpful for queries and sorting
-itemSchema.index({ userId: 1, expiryDate: 1 });
-itemSchema.index({ userId: 1, category: 1 });
-
-// keep status consistent on create
-itemSchema.pre('save', function (next) {
-  if (this.expiryDate && new Date(this.expiryDate) < new Date()) {
-    this.status = this.status === 'consumed' ? 'consumed' : 'expired';
-  } else if (this.status !== 'consumed') {
-    this.status = 'active';
-  }
-  next();
-});
-
-// keep status consistent on update (findOneAndUpdate bypasses 'save')
-itemSchema.pre('findOneAndUpdate', function (next) {
-  const update = this.getUpdate() || {};
-  const set = update.$set || update;
-
-  if (set.expiryDate || set.status) {
-    const exp = set.expiryDate ? new Date(set.expiryDate) : null;
-    const isExpired = exp && !isNaN(exp) && exp < new Date();
-
-    const nextStatus =
-      set.status === 'consumed'
-        ? 'consumed'
-        : isExpired
-          ? 'expired'
-          : 'active';
-
-    this.setUpdate({
-      ...update,
-      $set: { ...(update.$set || {}), status: nextStatus }
-    });
-  }
-  next();
-});
 
 export default mongoose.model('Item', itemSchema);

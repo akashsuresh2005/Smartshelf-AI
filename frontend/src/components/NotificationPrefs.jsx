@@ -35,6 +35,7 @@ export default function NotificationPrefs() {
         expired: !!(data?.expired ?? prefs.expired),
         digestDaily: !!(data?.digestDaily ?? prefs.digestDaily),
         digestWeekly: !!(data?.digestWeekly ?? prefs.digestWeekly),
+        whatsappEnabled: !!data.whatsappEnabled
       }
 
       setPrefs(next)
@@ -91,10 +92,10 @@ export default function NotificationPrefs() {
   }
 
   return (
-    <div className="bg-slate-900/60 rounded-lg p-5 border border-slate-800/50 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-cyan-400">
-          Manage your email notifications & preferences
+    <div className="bg-slate-900/60 rounded-lg p-4 sm:p-5 border border-slate-800/50 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-base sm:text-lg font-semibold text-cyan-400">
+          Manage your email notifications &amp; preferences
         </h3>
         {loading && <span className="text-xs text-slate-500">Loading…</span>}
       </div>
@@ -110,54 +111,54 @@ export default function NotificationPrefs() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-3">
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2 cursor-pointer">
           <input
             type="checkbox"
             checked={prefs.emailEnabled}
             onChange={() => toggle('emailEnabled')}
           />
-          <span className="text-slate-200">Email notifications enabled</span>
+          <span className="text-sm sm:text-base text-slate-200">Email notifications enabled</span>
         </label>
 
-        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2 cursor-pointer">
           <input
             type="checkbox"
             checked={prefs.expiringSoon}
             onChange={() => toggle('expiringSoon')}
           />
-          <span className="text-slate-200">Notify when items are expiring soon</span>
+          <span className="text-sm sm:text-base text-slate-200">Notify when items are expiring soon</span>
         </label>
 
-        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2 cursor-pointer">
           <input
             type="checkbox"
             checked={prefs.expired}
             onChange={() => toggle('expired')}
           />
-          <span className="text-slate-200">Notify when items are expired</span>
+          <span className="text-sm sm:text-base text-slate-200">Notify when items are expired</span>
         </label>
 
-        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2 cursor-pointer">
           <input
             type="checkbox"
             checked={prefs.digestDaily}
             onChange={() => toggle('digestDaily')}
           />
-          <span className="text-slate-200">Daily email digest</span>
+          <span className="text-sm sm:text-base text-slate-200">Daily email digest</span>
         </label>
 
-        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2">
+        <label className="flex items-center gap-3 bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2 cursor-pointer">
           <input
             type="checkbox"
             checked={prefs.digestWeekly}
             onChange={() => toggle('digestWeekly')}
           />
-          <span className="text-slate-200">Weekly email digest</span>
+          <span className="text-sm sm:text-base text-slate-200">Weekly email digest</span>
         </label>
       </div>
 
-      <div className="flex items-center justify-end gap-3">
+      <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
         {error && (
           <button
             className="rounded-lg bg-slate-700 text-white px-3 py-2 text-sm hover:bg-slate-600"

@@ -2,7 +2,7 @@
 export default function CategoryFilter({ value, onChange }) {
   return (
     <select
-      className="w-full rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-300 px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
+      className="w-full rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-300 px-4 py-2.5 text-sm sm:text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
