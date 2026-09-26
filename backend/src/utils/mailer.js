@@ -100,8 +100,12 @@ export async function sendEmail(to, subject, body, textOverride) {
     console.log(`[MAILER] ✅ Email sent to ${to}: ${subject}`);
     return info;
   } catch (err) {
-    console.error('[MAILER ERROR] ❌', err?.message || err);
-    throw err;
+    if (err && err.code === 'EAUTH') {
+      console.warn(`[MAILER] ⚠️ Gmail SMTP authentication failed (Invalid/expired EMAIL_PASS in .env). Email to ${to} was not delivered.`);
+    } else {
+      console.warn('[MAILER] ⚠️ Email delivery failed:', err?.message || err);
+    }
+    return null;
   }
 }
 

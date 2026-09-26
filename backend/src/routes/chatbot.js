@@ -1,19 +1,15 @@
 // routes/chatbot.js
 import express from "express";
-import axios from "axios";
 import llmFormatter from "../services/formatters/llmFormatter.js";
+import { performAISearch } from "./aiSearch.js";
 
 const router = express.Router();
 
-// helper to call local ai-search (kept simple and local)
+// helper to call local ai-search directly (no loopback HTTP overhead)
 async function searchDB(userId, message) {
   try {
-    const resp = await axios.post(
-      "http://localhost:5000/api/items/ai-search",
-      { userId, query: message },
-      { timeout: 8000 }
-    );
-    return resp.data || { found: false };
+    const result = await performAISearch(userId, message);
+    return result || { found: false };
   } catch (err) {
     console.error("[chatbot] ai-search error:", err?.message || err);
     return { found: false };

@@ -27,7 +27,10 @@ import { initCronJobs } from './utils/cronJobs.js';
 /* ===================== */
 /* ENV SETUP */
 /* ===================== */
-dotenv.config(); // FIXED (Render-safe)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '..', '.env') });
+dotenv.config(); // fallback for current working directory
 
 const app = express();
 

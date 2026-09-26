@@ -139,55 +139,60 @@ async function multiFind(userId, candidates, limit = 20) {
   return Item.find({ userId: uid, $or: orClauses }).sort({ expiryDate: 1 }).limit(limit).lean().exec();
 }
 
+export async function performAISearch(userId, query) {
+  if (!userId || !query) return { found: false, reason: 'missing userId or query' };
+
+  const raw = normalize(query);
+  const expiryIntent = detectExpiryIntent(raw);
+
+  if (expiryIntent && expiryIntent.type === 'expiry') {
+    const days = expiryIntent.days ?? 7;
+    const items = await findItemsExpiringWithin(userId, days);
+    if (!items || items.length === 0) {
+      return { found: false, items: [], evidence: { source: 'SmartShelf DB', queryType: 'expiry', days } };
+    }
+    const mapped = items.map((item) => ({
+      id: item._id, name: item.name, brand: item.brand, expiryDate: item.expiryDate,
+      quantity: item.quantity, unit: item.unit, location: item.location, status: item.status,
+      barcode: item.barcode, notified: item.notified
+    }));
+    return { found: true, items: mapped, evidence: { source: 'SmartShelf DB', queryType: 'expiry', days } };
+  }
+
+  const candidates = extractCandidates(query);
+  const item = await tryFind(userId, candidates);
+
+  if (item) {
+    return {
+      found: true,
+      item: {
+        id: item._id, name: item.name, brand: item.brand, expiryDate: item.expiryDate,
+        quantity: item.quantity, unit: item.unit, location: item.location, status: item.status,
+        barcode: item.barcode, notified: item.notified
+      },
+      evidence: { source: 'SmartShelf DB', queryType: 'single' }
+    };
+  }
+
+  const matches = await multiFind(userId, candidates, 20);
+  if (matches && matches.length) {
+    const mapped = matches.map((item) => ({
+      id: item._id, name: item.name, brand: item.brand, expiryDate: item.expiryDate,
+      quantity: item.quantity, unit: item.unit, location: item.location, status: item.status,
+      barcode: item.barcode, notified: item.notified
+    }));
+    return { found: true, items: mapped, evidence: { source: 'SmartShelf DB', queryType: 'multi' } };
+  }
+
+  return { found: false, evidence: { source: 'SmartShelf DB', queryType: 'single_or_multi' } };
+}
+
 /** POST /api/items/ai-search */
 router.post('/ai-search', async (req, res) => {
   try {
     const { userId, query } = req.body || {};
-    if (!userId || !query) return res.status(200).json({ found: false, reason: 'missing userId or query' });
-
-    const raw = normalize(query);
-    const expiryIntent = detectExpiryIntent(raw);
-
-    if (expiryIntent && expiryIntent.type === 'expiry') {
-      const days = expiryIntent.days ?? 7;
-      const items = await findItemsExpiringWithin(userId, days);
-      if (!items || items.length === 0) {
-        return res.json({ found: false, items: [], evidence: { source: 'SmartShelf DB', queryType: 'expiry', days } });
-      }
-      const mapped = items.map((item) => ({
-        id: item._id, name: item.name, brand: item.brand, expiryDate: item.expiryDate,
-        quantity: item.quantity, unit: item.unit, location: item.location, status: item.status,
-        barcode: item.barcode, notified: item.notified
-      }));
-      return res.json({ found: true, items: mapped, evidence: { source: 'SmartShelf DB', queryType: 'expiry', days } });
-    }
-
-    const candidates = extractCandidates(query);
-    const item = await tryFind(userId, candidates);
-
-    if (item) {
-      return res.json({
-        found: true,
-        item: {
-          id: item._id, name: item.name, brand: item.brand, expiryDate: item.expiryDate,
-          quantity: item.quantity, unit: item.unit, location: item.location, status: item.status,
-          barcode: item.barcode, notified: item.notified
-        },
-        evidence: { source: 'SmartShelf DB', queryType: 'single' }
-      });
-    }
-
-    const matches = await multiFind(userId, candidates, 20);
-    if (matches && matches.length) {
-      const mapped = matches.map((item) => ({
-        id: item._id, name: item.name, brand: item.brand, expiryDate: item.expiryDate,
-        quantity: item.quantity, unit: item.unit, location: item.location, status: item.status,
-        barcode: item.barcode, notified: item.notified
-      }));
-      return res.json({ found: true, items: mapped, evidence: { source: 'SmartShelf DB', queryType: 'multi' } });
-    }
-
-    return res.json({ found: false, evidence: { source: 'SmartShelf DB', queryType: 'single_or_multi' } });
+    const result = await performAISearch(userId, query);
+    return res.json(result);
   } catch (err) {
     console.error('[ai-search] error:', err);
     return res.status(500).json({ found: false, error: err?.message || 'internal error' });

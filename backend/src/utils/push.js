@@ -1,5 +1,6 @@
 // server/utils/push.js
 import webpush from 'web-push';
+import PushSubscription from '../models/PushSubscription.js';
 
 const pub = process.env.WEB_PUSH_PUBLIC_VAPID_KEY;
 const priv = process.env.WEB_PUSH_PRIVATE_VAPID_KEY;
@@ -16,37 +17,81 @@ if (pub && priv) {
   console.warn('[push] VAPID keys not configured. Set WEB_PUSH_PUBLIC_VAPID_KEY and WEB_PUSH_PRIVATE_VAPID_KEY.');
 }
 
-// In-memory map for demo: endpoint -> { sub, userId, createdAt }
-// IMPORTANT: replace with DB storage for production
+// In-memory cache for speed
 const subscriptions = new Map();
 
 /**
- * Add a push subscription; optionally pass userId to associate
- * sub: PushSubscription object
- * userId: string | ObjectId
+ * Add a push subscription; persists to MongoDB and memory cache
  */
-export function addSubscription(sub, userId = null) {
+export async function addSubscription(sub, userId = null) {
   if (!sub || !sub.endpoint) return false;
   subscriptions.set(sub.endpoint, { sub, userId, createdAt: Date.now() });
-  console.log('[push] addSubscription:', userId || 'unknown-user', sub.endpoint);
+
+  try {
+    await PushSubscription.findOneAndUpdate(
+      { endpoint: sub.endpoint },
+      {
+        userId: userId || null,
+        endpoint: sub.endpoint,
+        expirationTime: sub.expirationTime || null,
+        keys: {
+          p256dh: sub.keys?.p256dh || '',
+          auth: sub.keys?.auth || ''
+        }
+      },
+      { upsert: true, new: true }
+    );
+    console.log('[push] DB addSubscription:', userId || 'unknown-user', sub.endpoint);
+  } catch (err) {
+    console.warn('[push] DB subscription save error:', err?.message || err);
+  }
+
   return true;
 }
 
 /** Remove subscription by endpoint */
-export function removeSubscriptionByEndpoint(endpoint) {
+export async function removeSubscriptionByEndpoint(endpoint) {
   if (!endpoint) return false;
   const ok = subscriptions.delete(endpoint);
+  try {
+    await PushSubscription.deleteOne({ endpoint });
+  } catch (err) {
+    console.warn('[push] DB subscription remove error:', err?.message || err);
+  }
   if (ok) console.log('[push] removed subscription', endpoint);
   return ok;
 }
 
-/** Return all subscriptions (raw sub objects) */
-export function listAllSubscriptions() {
+/** Return all subscriptions (from DB + cache) */
+export async function listAllSubscriptions() {
+  try {
+    const dbSubs = await PushSubscription.find().lean();
+    if (dbSubs && dbSubs.length) {
+      return dbSubs.map(x => ({
+        endpoint: x.endpoint,
+        expirationTime: x.expirationTime,
+        keys: x.keys
+      }));
+    }
+  } catch (e) {}
   return Array.from(subscriptions.values()).map(x => x.sub);
 }
 
 /** List subscriptions for a specific userId */
-export function listSubscriptionsForUser(userId) {
+export async function listSubscriptionsForUser(userId) {
+  try {
+    if (userId) {
+      const dbSubs = await PushSubscription.find({ userId }).lean();
+      if (dbSubs && dbSubs.length) {
+        return dbSubs.map(x => ({
+          endpoint: x.endpoint,
+          expirationTime: x.expirationTime,
+          keys: x.keys
+        }));
+      }
+    }
+  } catch (e) {}
+
   return Array.from(subscriptions.values())
     .filter(x => String(x.userId) === String(userId))
     .map(x => x.sub);
@@ -60,12 +105,10 @@ async function safeSendNotification(sub, payload) {
     console.log('[push] sent OK to', sub.endpoint);
     return res;
   } catch (err) {
-    // Log statusCode if present
     const sc = err && err.statusCode;
     console.error('[push] sendNotification error for endpoint:', sub.endpoint, sc || err);
     if (sc === 410 || sc === 404) {
-      // Gone or Not Found -> remove subscription
-      removeSubscriptionByEndpoint(sub.endpoint);
+      await removeSubscriptionByEndpoint(sub.endpoint);
       console.log('[push] subscription removed due to endpoint gone:', sub.endpoint);
     }
     throw err;
@@ -79,7 +122,7 @@ export async function sendPushToUser(userId, title = 'Notification', body = '') 
     return;
   }
   const payload = { title, body };
-  const subs = listSubscriptionsForUser(userId);
+  const subs = await listSubscriptionsForUser(userId);
   if (!subs.length) {
     console.log('[push] no subscriptions for user', userId);
     return;
@@ -87,13 +130,13 @@ export async function sendPushToUser(userId, title = 'Notification', body = '') 
   await Promise.all(subs.map(s => safeSendNotification(s, payload).catch(() => {})));
 }
 
-/** Broadcast to all known subscriptions (use carefully) */
+/** Broadcast to all known subscriptions */
 export async function sendPushToAll(title = 'Notification', body = '') {
   if (!pub || !priv) {
     console.warn('[push] VAPID keys not configured, abort sendPushToAll');
     return;
   }
   const payload = { title, body };
-  const subs = listAllSubscriptions();
+  const subs = await listAllSubscriptions();
   await Promise.all(subs.map(s => safeSendNotification(s, payload).catch(() => {})));
 }

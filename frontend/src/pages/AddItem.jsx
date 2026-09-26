@@ -18,6 +18,8 @@ export default function AddItem() {
   const [estimatedCost, setEstimatedCost] = useState('')
   const [purchaseDate, setPurchaseDate] = useState('')
   const [expiryDate, setExpiryDate] = useState('')
+  const [dosage, setDosage] = useState('')
+  const [reminderTime, setReminderTime] = useState('')
   const [openedAt, setOpenedAt] = useState('')
   const [location, setLocation] = useState('pantry')
   const [notes, setNotes] = useState('')
@@ -30,7 +32,9 @@ export default function AddItem() {
       const payload = {
         name: name.trim(),
         category,
+        dosage: dosage?.trim() || undefined,
         expiryDate,
+        reminderTime: reminderTime ? new Date(reminderTime).toISOString() : undefined,
         estimatedCost: estimatedCost !== '' ? Number(estimatedCost) : undefined,
         barcode: barcode?.trim() || undefined,
         brand: brand?.trim() || undefined,
@@ -57,8 +61,8 @@ export default function AddItem() {
       } catch (e) {} // ignore
 
       // clear fields
-      setName(''); setCategory('grocery'); setExpiryDate('')
-      setEstimatedCost(''); setBarcode(''); setBrand('')
+      setName(''); setCategory('grocery'); setDosage(''); setExpiryDate('')
+      setReminderTime(''); setEstimatedCost(''); setBarcode(''); setBrand('')
       setQuantity(''); setUnit('pcs'); setLocation('pantry')
       setNotes(''); setPurchaseDate(''); setOpenedAt('')
       
@@ -249,7 +253,34 @@ export default function AddItem() {
                 onChange={(e) => setOpenedAt(e.target.value)} 
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">
+                Custom reminder time (optional)
+              </label>
+              <input 
+                type="datetime-local" 
+                className="w-full bg-slate-800/60 border border-slate-700/50 text-slate-200 rounded-lg px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors" 
+                value={reminderTime} 
+                onChange={(e) => setReminderTime(e.target.value)} 
+              />
+            </div>
           </div>
+
+          {/* Medicine Dosage Section */}
+          {category === 'medicine' && (
+            <div className="pt-2">
+              <label className="block text-sm font-medium text-cyan-400 mb-2">
+                💊 Dosage & Usage Instructions
+              </label>
+              <input 
+                className="w-full bg-slate-800/60 border border-cyan-500/30 text-slate-200 rounded-lg px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors placeholder:text-slate-600" 
+                value={dosage} 
+                onChange={(e) => setDosage(e.target.value)} 
+                placeholder="e.g., 1 tablet twice daily after meals"
+              />
+            </div>
+          )}
         </div>
 
         {/* Section 4: Storage & Notes */}

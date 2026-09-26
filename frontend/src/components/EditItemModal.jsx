@@ -16,6 +16,8 @@ export default function EditItemModal({ item, onSaved, onClose }) {
     unit: item?.unit || 'pcs',
     location: item?.location || 'pantry',
     notes: item?.notes || '',
+    dosage: item?.dosage || '',
+    reminderTime: item?.reminderTime ? String(item.reminderTime).slice(0, 16) : '',
     purchaseDate: item?.purchaseDate ? String(item.purchaseDate).slice(0, 10) : '',
     openedAt: item?.openedAt ? String(item.openedAt).slice(0, 10) : '',
   })
@@ -26,6 +28,8 @@ export default function EditItemModal({ item, onSaved, onClose }) {
     e.preventDefault()
     const payload = {
       ...form,
+      dosage: form.dosage?.trim() || undefined,
+      reminderTime: form.reminderTime ? new Date(form.reminderTime).toISOString() : undefined,
       estimatedCost: form.estimatedCost === '' ? undefined : Number(form.estimatedCost),
       quantity: form.quantity === '' ? undefined : Number(form.quantity),
       expiryDate: form.expiryDate || undefined,
@@ -189,6 +193,30 @@ export default function EditItemModal({ item, onSaved, onClose }) {
               onChange={(e) => set('openedAt', e.target.value)}
             />
           </div>
+
+          {/* Custom reminder time */}
+          <div>
+            <label className="block text-sm text-slate-400 mb-1">Reminder time</label>
+            <input
+              type="datetime-local"
+              className="w-full rounded-lg bg-slate-800/60 border border-slate-700/50 text-slate-200 px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
+              value={form.reminderTime}
+              onChange={(e) => set('reminderTime', e.target.value)}
+            />
+          </div>
+
+          {/* Dosage (if medicine or filled) */}
+          {(form.category === 'medicine' || form.dosage) && (
+            <div className="md:col-span-2">
+              <label className="block text-sm text-cyan-400 mb-1">💊 Dosage instructions</label>
+              <input
+                className="w-full rounded-lg bg-slate-800/60 border border-cyan-500/30 text-slate-200 px-4 py-2.5 text-base focus:outline-none focus:border-cyan-500/50 transition-colors"
+                value={form.dosage}
+                onChange={(e) => set('dosage', e.target.value)}
+                placeholder="e.g., 1 tablet twice daily"
+              />
+            </div>
+          )}
 
           {/* Notes */}
           <div className="md:col-span-2">

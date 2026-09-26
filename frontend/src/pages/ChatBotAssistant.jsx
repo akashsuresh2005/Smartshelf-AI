@@ -1,219 +1,24 @@
-// // src/pages/ChatBotAssistant.jsx
-// import { useState, useRef, useEffect } from "react";
-// import api from "../utils/api.js";
-
-// export default function ChatBotAssistant() {
-//   const [input, setInput] = useState("");
-//   const [messages, setMessages] = useState([
-//     {
-//       from: "bot",
-//       text:
-//         "Hi! I'm your SmartShelf AI — I can help you with expiries, storage tips, recipes, reminders, and more."
-//     }
-//   ]);
-//   const [sending, setSending] = useState(false);
-//   const listRef = useRef(null);
-
-//   // Auto scroll
-//   useEffect(() => {
-//     if (!listRef.current) return;
-//     listRef.current.scrollTop = listRef.current.scrollHeight;
-//   }, [messages]);
-
-//   // small helper: safe JWT payload parser (no external deps)
-//   function parseJwtSafe(token) {
-//     if (!token || typeof token !== "string") return null;
-//     try {
-//       const parts = token.split(".");
-//       if (parts.length < 2) return null;
-//       const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-//       const decoded = atob(payload);
-//       // decodeURIComponent trick to handle utf8
-//       const json = decodeURIComponent(
-//         decoded
-//           .split("")
-//           .map((c) => {
-//             return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-//           })
-//           .join("")
-//       );
-//       return JSON.parse(json);
-//     } catch (e) {
-//       return null;
-//     }
-//   }
-
-//   // NEW SEND FUNCTION (robust userId extraction + graceful fallback)
-//   const send = async (e) => {
-//     e?.preventDefault();
-//     const text = input.trim();
-//     if (!text) return;
-
-//     // Add user's message
-//     const userMsg = { from: "you", text };
-//     setMessages((m) => [...m, userMsg]);
-//     setInput("");
-//     setSending(true);
-
-//     try {
-//       // 1) prefer explicit stored uid (set on login)
-//       let userId = null;
-//       try {
-//         userId = localStorage.getItem("uid") || null;
-//       } catch (e) {
-//         userId = null;
-//       }
-
-//       // 2) fallback: decode token stored in localStorage (if any)
-//       if (!userId) {
-//         try {
-//           const token = localStorage.getItem("token");
-//           if (token) {
-//             const payload = parseJwtSafe(token);
-//             // common fields where id may live
-//             userId = payload?.id || payload?.userId || payload?.sub || payload?._id || null;
-//           }
-//         } catch (e) {
-//           userId = null;
-//         }
-//       }
-
-//       // Debug: show what userId we will send (non-invasive)
-//       console.debug("[ChatBotAssistant] sending chat, userId:", userId);
-
-//       // If still no userId: prompt sign-in (do not send broken request)
-//       if (!userId) {
-//         setMessages((m) => [
-//           ...m,
-//           { from: "bot", text: "Please sign in to use SmartShelf AI." }
-//         ]);
-//         setSending(false);
-//         return;
-//       }
-
-//       // Call backend chat endpoint - api attaches Authorization header already (if token exists)
-//       const reply = await api.post("/chat", { userId, message: text });
-
-//       // Debug: log raw reply for inspection
-//       console.debug("[ChatBotAssistant] /chat reply:", reply);
-
-//       // reply might be plain text (api.js returns text for text/plain) or JSON object
-//       if (typeof reply === "string") {
-//         setMessages((m) => [...m, { from: "bot", text: reply }]);
-//       } else if (reply && reply.summary) {
-//         const parts = [reply.summary];
-//         if (reply.details) parts.push(reply.details);
-//         if (reply.items && reply.items.length) {
-//           parts.push(
-//             `Found ${reply.items.length} item(s): ` +
-//               reply.items
-//                 .map((it) => `${it.name} (${it.expiryDate ? new Date(it.expiryDate).toLocaleDateString() : "—"})`)
-//                 .join(", ")
-//           );
-//         }
-//         setMessages((m) => [...m, { from: "bot", text: parts.join("\n\n") }]);
-//       } else {
-//         setMessages((m) => [...m, { from: "bot", text: reply?.message || "Got it!" }]);
-//       }
-//     } catch (err) {
-//       console.error("AI request failed:", err);
-//       const userFacing =
-//         err?.response?.status === 401
-//           ? "Please sign in to use SmartShelf AI."
-//           : "Something went wrong — try again.";
-//       setMessages((m) => [...m, { from: "bot", text: userFacing }]);
-//     } finally {
-//       setSending(false);
-//     }
-//   };
-
-//   return (
-//     <div className="flex flex-col gap-5 w-full">
-//       {/* Title */}
-//       <div className="text-center">
-//         <h2 className="text-2xl font-bold text-blue-500 animate-fade-in">🤖 SmartShelf AI Assistant</h2>
-//         <p className="text-sm text-gray-400 mt-1 animate-fade-in-slow">
-//           Ask me anything about your items, recipes, storage, reminders, and more.
-//         </p>
-//       </div>
-
-//       {/* Chat Box */}
-//       <div
-//         ref={listRef}
-//         className="h-72 overflow-y-auto space-y-3 p-4 bg-white border border-gray-300 rounded-xl shadow-md transition-all duration-300 ease-in-out"
-//         aria-live="polite"
-//       >
-//         {messages.map((m, i) => (
-//           <div key={i} className={m.from === "you" ? "ml-auto max-w-[80%]" : "mr-auto max-w-[80%]"}>
-//             <div
-//               className={`px-4 py-3 rounded-xl text-sm animate-slide-up ${
-//                 m.from === "you"
-//                   ? "bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg"
-//                   : "bg-gray-100 text-gray-800 shadow-sm"
-//               }`}
-//             >
-//               <pre className="whitespace-pre-wrap">{m.text}</pre>
-//             </div>
-//           </div>
-//         ))}
-//       </div>
-
-//       {/* Input & Send */}
-//       <form onSubmit={send} className="flex gap-3 items-center">
-//         <input
-//           className="flex-1 rounded-full border border-gray-300 px-4 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 animate-fade-in-slow"
-//           placeholder="Ask me anything..."
-//           value={input}
-//           onChange={(e) => setInput(e.target.value)}
-//           aria-label="Ask assistant"
-//         />
-//         <button
-//           disabled={sending}
-//           className="rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-2 text-sm font-medium hover:from-blue-700 hover:to-indigo-700 disabled:opacity-60 transition-all duration-200 shadow-md animate-fade-in"
-//         >
-//           {sending ? "Sending…" : "Send"}
-//         </button>
-//       </form>
-
-//       {/* Animations (no `jsx` attribute) */}
-//       <style>{`
-//         @keyframes fade-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
-//         @keyframes fade-in-slow { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-//         @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-//         .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-//         .animate-fade-in-slow { animation: fade-in-slow 0.8s ease-out forwards; }
-//         .animate-slide-up { animation: slide-up 0.4s ease-out forwards; }
-//       `}</style>
-//     </div>
-//   );
-// }
-// src/pages/ChatBotAssistant.jsx
 import { useState, useRef, useEffect } from "react";
 import api from "../utils/api.js";
+import { useAuth } from "../context/AuthContext.jsx";
 
 export default function ChatBotAssistant() {
+  const { user } = useAuth();
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState([
     {
       from: "bot",
-      text:
-        "Hi! I'm your SmartShelf AI — I can help you with expiries, storage tips, recipes, reminders, and more."
+      text: "👋 Hi! I'm your SmartShelf AI assistant.\n\nAsk me about:\n• Items expiring soon\n• Recipe ideas for your shelf\n• Optimal food & medicine storage\n• Shelf inventory status"
     }
   ]);
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
 
-  /* ===================== */
-  /* AUTO SCROLL */
-  /* ===================== */
   useEffect(() => {
     if (!listRef.current) return;
     listRef.current.scrollTop = listRef.current.scrollHeight;
   }, [messages]);
 
-  /* ===================== */
-  /* SAFE JWT PARSER */
-  /* ===================== */
   function parseJwtSafe(token) {
     if (!token || typeof token !== "string") return null;
     try {
@@ -232,13 +37,10 @@ export default function ChatBotAssistant() {
     }
   }
 
-  /* ===================== */
-  /* SEND MESSAGE */
-  /* ===================== */
   const send = async (e) => {
     e?.preventDefault();
     const text = input.trim();
-    if (!text) return;
+    if (!text || sending) return;
 
     // Show user message immediately
     setMessages(m => [...m, { from: "you", text }]);
@@ -246,82 +48,55 @@ export default function ChatBotAssistant() {
     setSending(true);
 
     try {
-      let userId = localStorage.getItem("uid");
+      let userId = user?.id || user?._id || localStorage.getItem("uid");
 
       if (!userId) {
         const token = localStorage.getItem("token");
         if (token) {
           const payload = parseJwtSafe(token);
-          userId =
-            payload?.id ||
-            payload?.userId ||
-            payload?.sub ||
-            payload?._id ||
-            null;
+          userId = payload?.id || payload?.userId || payload?.sub || payload?._id || null;
         }
       }
 
       if (!userId) {
         setMessages(m => [
           ...m,
-          { from: "bot", text: "Please sign in to use SmartShelf AI." }
+          { from: "bot", text: "Please sign in to access your personal SmartShelf assistant." }
         ]);
         setSending(false);
         return;
       }
 
-      console.debug("[ChatBotAssistant] sending chat, userId:", userId);
-
-      // IMPORTANT:
-      // api.post() already returns response body because of axios interceptor
-      const reply = await api.post("/api/chat", {
+      const reply = await api.post("/chat", {
         userId,
         message: text
       });
 
-      console.debug("[ChatBotAssistant] /api/chat reply:", reply);
-
-      /* ===================== */
-      /* NORMALIZE ALL REPLIES */
-      /* ===================== */
       let finalText = "";
 
-      // Case 1: plain text
       if (typeof reply === "string") {
         finalText = reply;
-      }
-
-      // Case 2: array (DB results or AI chunks)
-      else if (Array.isArray(reply)) {
+      } else if (Array.isArray(reply)) {
         finalText = reply
           .map((item, index) => {
             if (typeof item === "string") return item;
-
             if (item.name && item.expiryDate) {
-              return `${index + 1}. ${item.name} — expires on ${new Date(
-                item.expiryDate
-              ).toLocaleDateString()}`;
+              return `${index + 1}. ${item.name} — expires on ${new Date(item.expiryDate).toLocaleDateString()}`;
             }
-
             if (item.message) return item.message;
             if (item.summary) return item.summary;
-
-            return `${index + 1}. ${JSON.stringify(item)}`;
+            return typeof item === "object" ? `${index + 1}. ${item.name || "Item"}` : String(item);
           })
           .join("\n");
-      }
-
-      // Case 3: object
-      else if (typeof reply === "object" && reply !== null) {
+      } else if (typeof reply === "object" && reply !== null) {
         finalText =
+          reply.text ||
+          reply.reply ||
           reply.message ||
           reply.summary ||
-          JSON.stringify(reply, null, 2);
-      }
-
-      // Fallback
-      else {
-        finalText = "I received your message, but couldn’t format the reply.";
+          "Understood.";
+      } else {
+        finalText = String(reply || "I am ready to help.");
       }
 
       setMessages(m => [...m, { from: "bot", text: finalText }]);
@@ -334,7 +109,7 @@ export default function ChatBotAssistant() {
           text:
             err?.response?.status === 401
               ? "Please sign in to use SmartShelf AI."
-              : "Something went wrong — try again."
+              : "Unable to connect to SmartShelf AI assistant. Please try again."
         }
       ]);
     } finally {
@@ -342,61 +117,95 @@ export default function ChatBotAssistant() {
     }
   };
 
-  /* ===================== */
-  /* UI */
-  /* ===================== */
   return (
-    <div className="flex flex-col gap-5 w-full">
+    <div className="flex flex-col gap-4 w-full max-w-4xl mx-auto">
       {/* Title */}
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-blue-500">
+      <div className="text-center py-2">
+        <h2 className="text-3xl font-semibold bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
           🤖 SmartShelf AI Assistant
         </h2>
-        <p className="text-sm text-gray-400 mt-1">
-          Ask me anything about your items, recipes, storage, reminders, and more.
+        <p className="text-sm text-slate-400 mt-1">
+          Ask about shelf expiries, recipes, storage tips, or inventory items
         </p>
       </div>
 
-      {/* Chat Box */}
+      {/* Chat Messages */}
       <div
         ref={listRef}
-        className="h-72 overflow-y-auto space-y-3 p-4 bg-white border border-gray-300 rounded-xl shadow-md"
+        className="h-96 overflow-y-auto space-y-3.5 p-5 bg-slate-900/80 border border-slate-800/80 rounded-2xl shadow-xl backdrop-blur-sm"
       >
         {messages.map((m, i) => (
           <div
             key={i}
-            className={m.from === "you" ? "ml-auto max-w-[80%]" : "mr-auto max-w-[80%]"}
+            className={m.from === "you" ? "ml-auto max-w-[85%]" : "mr-auto max-w-[85%]"}
           >
             <div
-              className={`px-4 py-3 rounded-xl text-sm ${
+              className={`px-4 py-3 rounded-2xl text-sm leading-relaxed transition-all shadow-md ${
                 m.from === "you"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 text-gray-800"
+                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-br-sm"
+                  : "bg-slate-800/90 text-slate-200 border border-slate-700/60 rounded-bl-sm"
               }`}
             >
-              <pre className="whitespace-pre-wrap">{m.text}</pre>
+              <pre className="whitespace-pre-wrap font-sans text-sm">{m.text}</pre>
             </div>
           </div>
         ))}
+
+        {sending && (
+          <div className="mr-auto max-w-[80%]">
+            <div className="px-4 py-2.5 rounded-2xl text-sm bg-slate-800/80 text-cyan-300 border border-slate-700/50 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+              <span>SmartShelf AI is thinking…</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Suggested Chips */}
+      <div className="flex flex-wrap gap-2 text-xs">
+        <button
+          type="button"
+          onClick={() => setInput("What is expiring soon?")}
+          className="bg-slate-800/70 hover:bg-slate-700/70 text-cyan-300 border border-slate-700/50 rounded-full px-3 py-1 transition-colors"
+        >
+          ⏰ What is expiring soon?
+        </button>
+        <button
+          type="button"
+          onClick={() => setInput("Suggest a recipe with my shelf ingredients")}
+          className="bg-slate-800/70 hover:bg-slate-700/70 text-indigo-300 border border-slate-700/50 rounded-full px-3 py-1 transition-colors"
+        >
+          🍲 Recipe suggestions
+        </button>
+        <button
+          type="button"
+          onClick={() => setInput("How should I store dairy products to last longer?")}
+          className="bg-slate-800/70 hover:bg-slate-700/70 text-emerald-300 border border-slate-700/50 rounded-full px-3 py-1 transition-colors"
+        >
+          💡 Food storage tips
+        </button>
       </div>
 
       {/* Input */}
-      <form onSubmit={send} className="flex gap-3">
+      <form onSubmit={send} className="flex gap-2.5 items-center">
         <input
-          className="flex-1 rounded-full border px-4 py-2 text-sm"
-          placeholder="Ask me anything..."
+          className="flex-1 rounded-xl bg-slate-800/70 border border-slate-700/60 px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-cyan-500 transition-colors shadow-inner"
+          placeholder="Ask anything (e.g., 'where is my milk stored?' or 'quick dinner idea')..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          disabled={sending}
         />
         <button
-          disabled={sending}
-          className="rounded-full bg-blue-600 text-white px-5 py-2 text-sm disabled:opacity-60"
+          type="submit"
+          disabled={sending || !input.trim()}
+          className="rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-medium px-6 py-3 text-sm disabled:opacity-50 transition-all shadow-md flex items-center gap-2"
         >
-          {sending ? "Sending…" : "Send"}
+          <span>Send</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+          </svg>
         </button>
       </form>
     </div>
   );
 }
-
-

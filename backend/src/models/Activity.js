@@ -1,22 +1,4 @@
-// // backend/src/models/Activity.js
-// import mongoose from 'mongoose'
 
-// const activitySchema = new mongoose.Schema(
-//   {
-//     userId: { type: String, required: true },
-//     userName: { type: String }, // optional
-//     type: { type: String, required: true }, // e.g., 'item:add','item:edit','item:delete','auth:login','auth:logout','notification:sent'
-//     message: { type: String, required: true },
-//     meta: { type: Object, default: {} }
-//   },
-//   { timestamps: true }
-// )
-
-// export default mongoose.model('Activity', activitySchema)
-// backend/src/models/Activity.js
-// backend/src/models/Activity.js
-// backend/src/models/Activity.js
-// backend/src/models/Activity.js
 import mongoose from 'mongoose'
 
 const activitySchema = new mongoose.Schema(

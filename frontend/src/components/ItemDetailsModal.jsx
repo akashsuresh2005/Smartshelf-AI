@@ -23,6 +23,8 @@ export default function ItemDetailsModal({ item, onClose }) {
     ['Location', item.location || '-'],
     ['Purchase Date', item.purchaseDate ? fmtDate(item.purchaseDate) : '-'],
     ['Opened At', item.openedAt ? fmtDate(item.openedAt) : '-'],
+    ['Reminder Time', item.reminderTime ? fmtDate(item.reminderTime, true) : '-'],
+    ['Dosage', item.dosage || '-'],
     ['Notes', item.notes || '-'],
   ]
 
